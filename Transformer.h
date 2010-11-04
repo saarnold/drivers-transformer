@@ -77,35 +77,28 @@ class StaticTransformationElement : public TransformationElement {
 /**
  * This class represents a dynamic transformation
  * 
- * This class uses an aggregator to generate dynamic transformations.
- * Therefore it needs a reference to an aggregator and the streamIdx
- * of the transformation stream.
+ * 
  * */
 class DynamicTransformationElement : public TransformationElement {
     public:
-	DynamicTransformationElement(const std::string &sourceFrame, const std::string &targetFrame, const aggregator::StreamAligner &aggregator, int streamIdx) : TransformationElement(sourceFrame, targetFrame), aggregator(aggregator), streamIdx(streamIdx) {};
+	DynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame, aggregator::StreamAligner& aggregator, base::Time period);
+	~DynamicTransformationElement();
 	
-	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, Eigen::Transform3d& result)
-	{
-	    std::pair<base::Time, Transformation> sample;
-	    if(!aggregator.getLastSample(streamIdx, sample))
-	    {
-		//no sample available, return
-		return false;
-	    }
-	    
-	    result = sample.second.transform;
-	    
-	    if(doInterpolation)
-	    {
-		throw std::runtime_error("Interpolation is not implemented");
-		//TODO implement me
-	    }
+	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, Eigen::Transform3d& result);
 
-	    return true;
-	};
+	int getStreamIdx() const
+	{
+	    return streamIdx;
+	}
+	
     private:
-	const aggregator::StreamAligner &aggregator;
+	
+	void aggregatorCallback(const base::Time &ts, const Transformation &value); 
+
+	aggregator::StreamAligner &aggregator;
+	base::Time lastTransformTime;
+	Transformation lastTransform;
+	bool gotTransform;
 	int streamIdx;
 };
 

@@ -127,7 +127,87 @@ bool InverseTransformationElement::getTransformation(const base::Time& atTime, b
     return false;
 };
 
+DynamicTransformationElement::DynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame, aggregator::StreamAligner& aggregator, base::Time period): TransformationElement(sourceFrame, targetFrame), aggregator(aggregator), gotTransform(false) 
+{
+    //giving a buffersize of zero means no buffer limitation at all
+    streamIdx = aggregator.registerStream<Transformation>(boost::bind( &transformer::DynamicTransformationElement::aggregatorCallback , this, _1, _2 ), 0, period, -10);
+}
 
+DynamicTransformationElement::~DynamicTransformationElement()
+{
+    //FIXME, get jakob and figure out, how to remove streams
+}
+
+void DynamicTransformationElement::aggregatorCallback(const base::Time& ts, const transformer::Transformation& value)
+{
+    std::cout << "DynamicTransformationElement callback time : " << ts << std::endl;
+    gotTransform = true;
+    lastTransform = value;
+    lastTransformTime = ts;
+}
+
+bool DynamicTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, Eigen::Transform3d& result)
+{
+    if(!gotTransform)
+    {
+	std::cout << "no sample available yet" << std::endl;
+	//no sample available, return
+	return false;
+    }
+    
+    std::cout << "Cur sample time " << lastTransformTime << std::endl;
+    
+    if(doInterpolation)
+    {
+	std::pair<base::Time, Transformation> next_sample;
+	
+	if(!aggregator.getNextSample(streamIdx, next_sample))
+	{
+	    std::cout << "could not get next sample" << std::endl;
+	    //not enought samples for itnerpolation available
+	    return false;
+	}
+	
+	double timeForward = (atTime - lastTransformTime).toSeconds();
+	
+	if(timeForward < 0) 
+	{
+	    throw std::runtime_error("Error, time of sample is lower than transformation time"); 
+	}
+	
+	if(timeForward == 0) 
+	{
+	    //transform time is equal to sample time, no interpolation needed
+	    result = lastTransform.transform;
+
+	    return true;
+	}
+	
+	Eigen::Transform3d interpolated(Eigen::Transform3d::Identity());
+	
+	double timeBetweenTransforms = (next_sample.first - lastTransformTime).toSeconds();
+
+	assert(timeBetweenTransforms > timeForward);
+	
+	double factor = timeForward / timeBetweenTransforms;
+	
+	Eigen::Quaterniond start_r(lastTransform.transform.rotation());
+	Eigen::Quaterniond end_r(next_sample.second.transform.rotation());
+	
+	interpolated.rotate(start_r.slerp(factor, end_r));
+	
+	Eigen::Vector3d start_t(lastTransform.transform.translation());
+	Eigen::Vector3d end_t(next_sample.second.transform.translation());
+	
+	interpolated.translation() = start_t + (end_t - start_t) * factor; 
+
+	result = interpolated;
+    } else {
+	result = lastTransform.transform;
+    }
+
+    return true;
+};
 
 bool TransformationMakerBase::getTransformation(const base::Time &time, Transformation& tr, bool doInterpolation)
 {
