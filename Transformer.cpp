@@ -247,19 +247,21 @@ void Transformer::pushDynamicTransformation(const transformer::Transformation& t
     
     //we got an unknown transformation
     if(it == transformToStreamIndex.end()) {
-	int streamIdx = registerTransformationStream(tr.from, tr.to);
 	locked = true;
 
+	//create a representation of the dynamic transformation
+	DynamicTransformationElement *dynamicElement = new DynamicTransformationElement(tr.from, tr.to, aggregator, maxPeriod);
+	
+	int streamIdx = dynamicElement->getStreamIdx();
 	
 	transformToStreamIndex[std::make_pair(tr.from, tr.to)] = streamIdx;
 	
 	std::cout << "Registering new stream for transformation from " << tr.from << " to " << tr.to << " index is " << streamIdx << std::endl;
 	
 	//add new dynamic element to transformation tree
-	TransformationElement *dynamicElement = new DynamicTransformationElement(tr.from, tr.to, aggregator, streamIdx);
 	transformationTree.addTransformation(dynamicElement);
 	
-	//seek throug all available data streams and update transformation chains
+	//seek through all available data streams and update transformation chains
 	for(std::vector<TransformationMakerBase *>::iterator streams = transformationMakers.begin(); streams != transformationMakers.end(); streams++)
 	{
 	    std::vector< TransformationElement* > trChain;

@@ -282,6 +282,7 @@ class Transformer
 	std::vector<TransformationMakerBase *> transformationMakers;
 	TransformationTree transformationTree;
 	bool locked;
+	base::Time maxPeriod;
 	
     public:
 	Transformer() : locked(false) {};
@@ -301,6 +302,9 @@ class Transformer
 	{
 	    if(locked)
 		throw std::runtime_error("Tried to register data stream, after adding dynamic transformations");
+	    
+	    if(maxPeriod < dataPeriod)
+		maxPeriod = dataPeriod;
 	    
 	    TransformationMaker<T> *trMaker = new TransformationMaker<T>(callback, dataFrame, targetFrame, interpolate);
 	    transformationMakers.push_back(trMaker);
