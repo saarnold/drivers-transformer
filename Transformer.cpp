@@ -248,6 +248,8 @@ void Transformer::pushDynamicTransformation(const transformer::Transformation& t
     //we got an unknown transformation
     if(it == transformToStreamIndex.end()) {
 	int streamIdx = registerTransformationStream(tr.from, tr.to);
+	locked = true;
+
 	
 	transformToStreamIndex[std::make_pair(tr.from, tr.to)] = streamIdx;
 	

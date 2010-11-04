@@ -281,8 +281,11 @@ class Transformer
 	std::map<std::pair<std::string, std::string>, int> transformToStreamIndex;
 	std::vector<TransformationMakerBase *> transformationMakers;
 	TransformationTree transformationTree;
+	bool locked;
 	
     public:
+	Transformer() : locked(false) {};
+	
 	/**
 	 * This function may be used to manually set a transformation chain.
 	 * 
@@ -296,9 +299,12 @@ class Transformer
 	 * */
 	template <class T> int registerDataStream(base::Time dataPeriod, std::string dataFrame, std::string targetFrame, boost::function<void (const base::Time &ts, const T &value, const Transformation &t)> callback, bool interpolate)
 	{
+	    if(locked)
+		throw std::runtime_error("Tried to register data stream, after adding dynamic transformations");
+	    
 	    TransformationMaker<T> *trMaker = new TransformationMaker<T>(callback, dataFrame, targetFrame, interpolate);
 	    transformationMakers.push_back(trMaker);
-	    return aggregator.registerStream<T>(boost::bind( &(TransformationMaker<T>::aggregatorCallback) , trMaker, _1, _2 ), 0, dataPeriod);
+	    return aggregator.registerStream<T>(boost::bind( &TransformationMaker<T>::aggregatorCallback , trMaker, _1, _2 ), 0, dataPeriod);
 	};
 	
 	/**
