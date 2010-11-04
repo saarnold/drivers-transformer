@@ -118,6 +118,15 @@ bool TransformationTree::getTransformationChain(std::string from, std::string to
     return false;
 }
 
+bool InverseTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, Eigen::Transform3d& tr)
+{
+    if(nonInverseElement->getTransformation(atTime, doInterpolation, tr)){
+	tr = tr.inverse();
+	return true;
+    }
+    return false;
+};
+
 
 
 bool TransformationMakerBase::getTransformation(const base::Time &time, Transformation& tr, bool doInterpolation)

@@ -115,13 +115,7 @@ class DynamicTransformationElement : public TransformationElement {
 class InverseTransformationElement : public TransformationElement {
     public:
 	InverseTransformationElement(TransformationElement *source): TransformationElement(source->getTargetFrame(), source->getSourceFrame()), nonInverseElement(source) {};
-	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, Eigen::Transform3d& tr) {
-	    if(nonInverseElement->getTransformation(atTime, doInterpolation, tr)){
-		tr = tr.inverse();
-		return true;
-	    }
-	    return false;
-	};
+	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, Eigen::Transform3d& tr);
     private:
 	TransformationElement *nonInverseElement;
 };
