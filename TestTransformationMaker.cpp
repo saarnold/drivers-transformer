@@ -10,86 +10,48 @@
 #include <Eigen/Geometry>
 #include "Transformer.h"
 #include <base/samples/laser_scan.h>
+#include <Eigen/SVD>
 
 using namespace std;
 
 using namespace transformer;
 
+Transformation lastTransform;
+bool gotCallback;
 
 void ls_callback(const base::Time &ts, const base::samples::LaserScan &value, const Transformation &t) {
     std::cout << "Got callback ts: " << ts << " tr " << t.transform.matrix() << std::endl;
+    
+     std::cout << "Euler angels : " << t.transform.rotation().eulerAngles(2,1,0).transpose() / M_PI * 180.0 << std::endl;
+     lastTransform = t;
+     gotCallback = true;
 }
 
-BOOST_AUTO_TEST_CASE( no_transform_available )
+void defaultInit() {
+    lastTransform = Transformation();
+    gotCallback = false;
+};
+
+BOOST_AUTO_TEST_CASE( no_chain )
 {
-    std::cout << "Testcase no transforms available" << std::endl;
-    
+    defaultInit();
+    std::cout << "Testcase no chain" << std::endl;
     transformer::Transformer tf;
     base::samples::LaserScan ls;
     ls.time = base::Time::fromSeconds(10);
     
-    Transformation robot2Laser;
-    robot2Laser.from = "robot";
-    robot2Laser.to = "laser";
-    robot2Laser.time = base::Time::fromSeconds(10);
-    
-    
-    int r2l_idx = tf.registerTransformationStream("robot", "laser");
-    int ls_idx = tf.registerDataStream<base::samples::LaserScan>(base::Time::fromMicroseconds(10000), "laser", "robot", &ls_callback, false);
-    
-//     tf.pushData(r2l_idx, robot2Laser.time, robot2Laser);
-    tf.pushData(ls_idx, ls.time, ls);
-    
+    int ls_idx = tf.registerDataStream<base::samples::LaserScan>(base::Time::fromSeconds(10), "laser", "robot", &ls_callback, false);
+    tf.pushData(ls_idx, ls.time, ls);    
 
     while(tf.step())
-    {
-	std::cout << "did step" << std::endl;
-    }
-
-}
-
-BOOST_AUTO_TEST_CASE( test1 )
-{
-    transformer::Transformer tf;
-    base::samples::LaserScan ls;
-    ls.time = base::Time::fromSeconds(10);
+	;
     
-    Transformation robot2Laser;
-    robot2Laser.from = "robot";
-    robot2Laser.to = "laser";
-    robot2Laser.time = base::Time::fromSeconds(10);
-    robot2Laser.transform = Eigen::Transform3d::Identity();
-    
-    int r2l_idx = tf.registerTransformationStream("robot", "laser");
-    int ls_idx = tf.registerDataStream<base::samples::LaserScan>(base::Time::fromMicroseconds(10000), "laser", "robot", &ls_callback, false);
-
-    robot2Laser.time = base::Time::fromSeconds(1);
-    tf.pushData(r2l_idx, robot2Laser.time, robot2Laser);
-
-    robot2Laser.time = base::Time::fromSeconds(2);
-    tf.pushData(r2l_idx, robot2Laser.time, robot2Laser);
-
-    robot2Laser.time = base::Time::fromSeconds(10);
-    tf.pushData(r2l_idx, robot2Laser.time, robot2Laser);
-
-    tf.pushData(r2l_idx, robot2Laser.time, robot2Laser);
-    tf.pushData(ls_idx, ls.time, ls);
-    
-
-    //build fake chain
-    std::vector<TransformationElement *> trChain;
-    trChain.push_back(new DynamicTransformationElement(robot2Laser.from, robot2Laser.to, tf.getAggregator(), r2l_idx));
-    
-    tf.addTransformationChain("laser", "robot", trChain);
-    
-    while(tf.step())
-    {
-	std::cout << "did step " << std::endl;
-    }
+    BOOST_CHECK_EQUAL( gotCallback, false );
 }
 
 BOOST_AUTO_TEST_CASE( automatic_chain_generation_simple )
 {
+    defaultInit();
     std::cout << "Testcase automatic chain generation" << std::endl;
     transformer::Transformer tf;
     base::samples::LaserScan ls;
@@ -102,14 +64,16 @@ BOOST_AUTO_TEST_CASE( automatic_chain_generation_simple )
     robot2Laser.transform = Eigen::Transform3d::Identity();
     robot2Laser.transform.translation() = Eigen::Vector3d(10,0,0);
     
-    int ls_idx = tf.registerDataStream<base::samples::LaserScan>(base::Time::fromMicroseconds(10000), "laser", "robot", &ls_callback, false);
-    tf.pushData(ls_idx, ls.time, ls);
-    
+    int ls_idx = tf.registerDataStream<base::samples::LaserScan>(base::Time::fromSeconds(10), "laser", "robot", &ls_callback, false);
+    tf.pushData(ls_idx, ls.time, ls);    
     
     robot2Laser.time = base::Time::fromSeconds(1);
     tf.pushDynamicTransformation(robot2Laser);
 
     robot2Laser.time = base::Time::fromSeconds(2);
+    tf.pushDynamicTransformation(robot2Laser);
+
+    robot2Laser.time = base::Time::fromSeconds(9);
     tf.pushDynamicTransformation(robot2Laser);
 
     robot2Laser.time = base::Time::fromSeconds(10);
@@ -118,15 +82,19 @@ BOOST_AUTO_TEST_CASE( automatic_chain_generation_simple )
     robot2Laser.time = base::Time::fromSeconds(11);
     tf.pushDynamicTransformation(robot2Laser);
 
+
+    
     while(tf.step())
     {
-	std::cout << "did step " << std::endl;
+	;
     }
     
+    BOOST_CHECK_EQUAL( gotCallback, true );
 }
 
 BOOST_AUTO_TEST_CASE( automatic_chain_generation_simple_inverse )
 {
+    defaultInit();
     std::cout << std::endl << "Testcase automatic chain generation simple inverse" << std::endl;
     transformer::Transformer tf;
     base::samples::LaserScan ls;
@@ -147,12 +115,14 @@ BOOST_AUTO_TEST_CASE( automatic_chain_generation_simple_inverse )
 
     while(tf.step())
     {
-	std::cout << "did step " << std::endl;
+	;
     }  
+    BOOST_CHECK_EQUAL( gotCallback, true );
 }
 
 BOOST_AUTO_TEST_CASE( automatic_chain_generation_complex )
 {
+    defaultInit();
     std::cout << std::endl << "Testcase automatic chain generation complex" << std::endl;
     transformer::Transformer tf;
     base::samples::LaserScan ls;
@@ -185,8 +155,77 @@ BOOST_AUTO_TEST_CASE( automatic_chain_generation_complex )
 
     while(tf.step())
     {
-	std::cout << "did step " << std::endl;
-    }  
+    }
+    BOOST_CHECK_EQUAL( gotCallback, true );
 }
 
+BOOST_AUTO_TEST_CASE( interpolate )
+{
+    defaultInit();
+    std::cout << std::endl << "Testcase interpolation" << std::endl;
+    transformer::Transformer tf;
+    base::samples::LaserScan ls;
+    ls.time = base::Time::fromMicroseconds(10000);
+    
+    Transformation robot2laser;
+    robot2laser.from = "robot";
+    robot2laser.to = "laser";
+    robot2laser.time = base::Time::fromMicroseconds(5000);
+    robot2laser.transform = Eigen::Transform3d::Identity();
+    
+
+    int ls_idx = tf.registerDataStream<base::samples::LaserScan>(base::Time::fromMicroseconds(10000), "robot", "laser", &ls_callback, true);
+    tf.pushData(ls_idx, ls.time, ls);    
+    
+    tf.pushDynamicTransformation(robot2laser);
+
+    robot2laser.time = base::Time::fromMicroseconds(15000);
+    robot2laser.transform.rotate(Eigen::AngleAxisd(M_PI/2.0, Eigen::Vector3d::UnitZ()));
+    robot2laser.transform.translation() = (Eigen::Vector3d(10, 0 ,0));
+    tf.pushDynamicTransformation(robot2laser);
+    
+    while(tf.step())
+    {
+    }
+    
+    BOOST_CHECK_EQUAL( gotCallback, true );
+
+    Eigen::Vector3d eulerAngles = lastTransform.transform.rotation().eulerAngles(2,1,0).transpose() / M_PI * 180.0;
+    Eigen::Vector3d translation = lastTransform.transform.translation();
+    
+//     BOOST_CHECK_EQUAL( lastTransform.time, base::Time::fromMicroseconds(10000) );
+    
+    BOOST_CHECK_EQUAL( eulerAngles.x(), 45);
+    BOOST_CHECK_EQUAL( eulerAngles.y(), 0);
+    BOOST_CHECK_EQUAL( eulerAngles.z(), 0);
+    
+    BOOST_CHECK_EQUAL( translation.x(), 5);
+    BOOST_CHECK_EQUAL( translation.y(), 0);
+    BOOST_CHECK_EQUAL( translation.z(), 0);
+
+}
+
+BOOST_AUTO_TEST_CASE( register_data_stream_after_dyn_transform )
+{
+    std::cout << std::endl << "Testcase wrong stream order" << std::endl;
+    transformer::Transformer tf;
+    
+    Transformation robot2laser;
+    robot2laser.from = "robot";
+    robot2laser.to = "laser";
+    robot2laser.time = base::Time::fromMicroseconds(5000);
+    robot2laser.transform = Eigen::Transform3d::Identity();
+    
+    tf.pushDynamicTransformation(robot2laser);
+
+    bool threw(false);
+    
+    try {	
+	int ls_idx = tf.registerDataStream<base::samples::LaserScan>(base::Time::fromMicroseconds(10000), "robot", "laser", &ls_callback, true);
+    } catch (std::runtime_error e) {
+	threw = true;
+    }
+
+    BOOST_CHECK_EQUAL( threw, true );
+}
 
