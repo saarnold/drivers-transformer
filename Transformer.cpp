@@ -1,4 +1,6 @@
 #include "Transformer.h"
+#include <Eigen/LU>
+#include <Eigen/SVD>
 
 namespace transformer {
     
@@ -71,7 +73,6 @@ std::vector< TransformationNode* >::const_iterator TransformationTree::checkForM
 bool TransformationTree::getTransformationChain(std::string from, std::string to, std::vector< TransformationElement* >& result)
 {
     TransformationNode node(from, NULL, NULL);
-
     
     std::vector<TransformationNode *> curLevel;
     curLevel.push_back(&node);
@@ -238,16 +239,6 @@ bool TransformationMakerBase::getTransformation(const base::Time &time, Transfor
 
     tr = transformation;
     return true;
-}
-
-
-int Transformer::registerTransformationStream(std::string from, std::string to)
-{
-    //NULL callback means, do not call us if data get's popped
-    //giving a buffersize of zero means no buffer limitation at all
-    //the period is zero, so that the latest sample in respect to the
-    //data sample is allways available
-    return aggregator.registerStream<Transformation>(NULL, 0, base::Time(), 10);
 }
 
 void Transformer::pushDynamicTransformation(const transformer::Transformation& tr)

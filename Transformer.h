@@ -7,7 +7,6 @@
 #include <StreamAligner.hpp>
 #include <map>
 #include <boost/bind.hpp>
-#include <Eigen/LU>
 
 namespace transformer {
  
@@ -284,21 +283,6 @@ class Transformer
 	TransformationTree transformationTree;
 	
     public:
-	/**
-	 * returns a const reference to the aggregator.
-	 * This function is mainly there for testing purposes.
-	 * */
-	const aggregator::StreamAligner &getAggregator() const
-	{
-	    return aggregator;
-	}	
-
-	/**
-	 * Helper function that registeres a transformation stream at the aggregator.
-	 * returns the streamIdx of the registered stream.
-	 * */
-	int registerTransformationStream(std::string from, std::string to);	
-
 	/**
 	 * This function may be used to manually set a transformation chain.
 	 * 
