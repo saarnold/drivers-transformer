@@ -211,7 +211,10 @@ class TransformationMakerBase
 	 * Else it will return true an store the requested transformation in tr
 	 * */
 	bool getTransformation(const base::Time& time, transformer::Transformation& tr, bool doInterpolation);
-	
+
+	bool getTransformationChain(const base::Time& time, std::vector<Transformation>& tr, bool doInterpolation);
+    protected:
+
 	/**
 	 * Transformation chain from sourceFrame to targetFrame
 	 * */
@@ -262,8 +265,50 @@ template <class T> class TransformationMaker: public TransformationMakerBase {
 	 * @param interpolate flag if interpolation should be done
 	 * */
 	TransformationMaker(boost::function<void (const base::Time &ts, const T &value, const Transformation &t)> callback, const std::string &sourceFrame, const std::string &targetFrame, bool interpolate): TransformationMakerBase(sourceFrame, targetFrame), callback(callback), doInterpolation(interpolate) {};
+};
+
+template <class T> class TransformationChainMaker: public TransformationMakerBase {
+    friend class Transformer;
+    private:
+	boost::function<void (const base::Time &ts, const T &value, const std::vector<Transformation> &t)> callback;
+	std::vector<Transformation> chain;
+	
+	/**
+	 * Callback that is registered at the aggregator. 
+	 * 
+	 * This class will try to get the coresponding transformation 
+	 * for the sample 'value' at time 'ts' and the call the convenience callback.
+	 * 
+	 * Note the convenience callback will not be called if no transformation is available
+	 * */
+	void aggregatorCallback(base::Time ts, T value) 
+	{
+	    if(!getTransformationChain(ts, chain, doInterpolation))
+	    {
+		std::cout << "Warning : dropping sample, as no transformation chain is available (yet)" << std::endl;
+		return;
+	    }
+	    
+	    //calls callback to pass result
+	    callback(ts, value, chain);
+	}
+
+	bool doInterpolation;
+    public:
+	
+	/**
+	 * Default constructor
+	 * 
+	 * Arguments:
+	 * @param callback Pointer to the callback that should be called as soon as a sample and a transform is available
+	 * @param sourceFrame Frame of the sample value
+	 * @param targetFrame Frame of the result of the transformation t
+	 * @param interpolate flag if interpolation should be done
+	 * */
+	TransformationChainMaker(boost::function<void (const base::Time &ts, const T &value, const std::vector<Transformation> &t)> callback, const std::string &sourceFrame, const std::string &targetFrame, bool interpolate): TransformationMakerBase(sourceFrame, targetFrame), callback(callback), doInterpolation(interpolate) {};
 	
 };
+
 
 /**
  * A class that provides transformations to given samples, ordered in time.
@@ -296,7 +341,17 @@ class Transformer
 	    transformationMakers.push_back(trMaker);
 	    return aggregator.registerStream<T>(boost::bind( &TransformationMaker<T>::aggregatorCallback , trMaker, _1, _2 ), 0, dataPeriod);
 	};
-	
+
+	/**
+	 * This function registes a new data stream together with an callback. 
+	 * */
+	template <class T> int registerDataStreamWithTransformChain(base::Time dataPeriod, std::string dataFrame, std::string targetFrame, boost::function<void (const base::Time &ts, const T &value, const std::vector<Transformation > &t)> callback, bool interpolate)
+	{
+	    TransformationChainMaker<T> *trMaker = new TransformationChainMaker<T>(callback, dataFrame, targetFrame, interpolate);
+	    transformationMakers.push_back(trMaker);
+	    return aggregator.registerStream<T>(boost::bind( &TransformationChainMaker<T>::aggregatorCallback , trMaker, _1, _2 ), 0, dataPeriod);
+	};
+
 	/**
 	 * Overloaded function, for Transformations, for convenience.
 	 * 

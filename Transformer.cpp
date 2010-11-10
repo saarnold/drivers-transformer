@@ -250,9 +250,33 @@ bool TransformationMakerBase::getTransformation(const base::Time &time, Transfor
     return true;
 }
 
+bool TransformationMakerBase::getTransformationChain(const base::Time& time, std::vector< Transformation >& tr, bool doInterpolation)
+{
+    if(transformationChain.empty()) 
+    {
+	return false;
     }
 
-    tr = transformation;
+    tr.resize(transformationChain.size());
+
+    Transformation transform;
+    
+    int i = 0;
+    
+    for(std::vector<TransformationElement *>::const_iterator it = transformationChain.begin(); it != transformationChain.end(); it++)
+    {
+	tr[i].sourceFrame = (*it)->getSourceFrame();
+	tr[i].targetFrame = (*it)->getTargetFrame();
+	tr[i].time = time;
+	if(!(*it)->getTransformation(time, doInterpolation, tr[i]))
+	{
+	    //no sample available, return
+	    return false;
+	}
+	
+	i++;
+    }
+
     return true;
 }
 
