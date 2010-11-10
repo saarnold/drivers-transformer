@@ -202,8 +202,6 @@ class TransformationMakerBase
 	    return targetFrame;
 	}	
 	
-    protected:
-	
 	/**
 	 * This functions tries to return a transformation from sourceFrame to targetFrame at the given time.
 	 * 
