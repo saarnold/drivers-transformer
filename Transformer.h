@@ -226,6 +226,32 @@ class TransformationMakerBase
 /**
  * Helper class, that will provide convenience callbacks 
  * */
+class PureTransformationMaker: public TransformationMakerBase {
+    friend class Transformer;
+    private:
+	boost::function<void (const base::Time &ts, const Transformation &t)> callback;
+	void aggregatorCallback(base::Time ts, bool value) 
+	{
+	    Transformation transformation;
+	    if(!getTransformation(ts, transformation, doInterpolation))
+	    {
+		std::cout << "Warning : dropping sample, as no transformation chain is available (yet)" << std::endl;
+		return;
+	    }
+	    
+	    //calls callback to pass result
+	    callback(ts, transformation);
+	}
+
+	bool doInterpolation;
+    public:
+	
+	PureTransformationMaker(boost::function<void (const base::Time &ts, const Transformation &t)> callback, const std::string &sourceFrame, const std::string &targetFrame, bool interpolate): TransformationMakerBase(sourceFrame, targetFrame), callback(callback), doInterpolation(interpolate) {};
+};
+
+/**
+ * Helper class, that will provide convenience callbacks 
+ * */
 template <class T> class TransformationMaker: public TransformationMakerBase {
     friend class Transformer;
     private:
@@ -332,6 +358,13 @@ class Transformer
 	 * */
 	void addTransformationChain(std::string from, std::string to, const std::vector<TransformationElement *> &chain);
 	
+	int registerTransfromCallback(std::string sourceFrame, std::string targetFrame, boost::function<void (const base::Time &ts, const Transformation &t)> callback, bool interpolate) 
+	{
+	    PureTransformationMaker *trMaker = new PureTransformationMaker(callback, sourceFrame, targetFrame, interpolate);
+	    transformationMakers.push_back(trMaker);
+	    return aggregator.registerStream<bool>(boost::bind( &PureTransformationMaker::aggregatorCallback , trMaker, _1, _2 ), 0, base::Time());
+	}
+	
 	/**
 	 * This function registes a new data stream together with an callback. 
 	 * */
@@ -360,6 +393,11 @@ class Transformer
 	void pushData( int idx, base::Time ts, const Transformation& data )
 	{
 	    pushDynamicTransformation(data);
+	};
+	
+	void requestTransformationAtTime(int idx, base::Time ts)
+	{
+	    aggregator.push(idx, ts, false);
 	};
 	
 	/** Push new data into the stream
