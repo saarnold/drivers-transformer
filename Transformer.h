@@ -337,6 +337,11 @@ class Transformer
 	    return aggregator.step();
 	}
 	
+	void setTimeout(const base::Time &t )
+	{
+	    aggregator.setTimeout(t);
+	}
+	
 	/**
 	 * Function for adding new Transformation samples.
 	 *
