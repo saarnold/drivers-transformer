@@ -1,6 +1,7 @@
 #include "Transformer.h"
 #include <Eigen/LU>
 #include <Eigen/SVD>
+#include <assert.h>
 
 namespace transformer {
     
@@ -279,6 +280,36 @@ bool TransformationMakerBase::getTransformationChain(const base::Time& time, std
 
     return true;
 }
+
+bool Transformer::getTransformation(const std::string& sourceFrame, const std::string& targetFrame, const base::Time& atTime, bool interpolate, transformer::Transformation &result)
+{
+    //TODO faster seek
+    //look for existing chain, that matches our request
+    for(std::vector<TransformationMakerBase *>::iterator streams = transformationMakers.begin(); streams != transformationMakers.end(); streams++)
+    {
+	if((*streams)->getSourceFrame() == sourceFrame && (*streams)->getTargetFrame() == targetFrame)
+	{
+	    return (*streams)->getTransformation(atTime, result, interpolate);
+	}
+    }
+
+    //no chain there, try to create a new one 
+    std::vector< TransformationElement* > trChain;
+    if(transformationTree.getTransformationChain(sourceFrame, targetFrame, trChain))
+    {
+	std::cout << "Setting tr chain " << std::endl;
+	TransformationMakerBase *tmb = new TransformationMakerBase(sourceFrame, targetFrame);
+	tmb->setTransformationChain(trChain);
+	
+	transformationMakers.push_back(tmb);
+	
+	return tmb->getTransformation(atTime, result, interpolate);
+    }
+
+    //no chain available
+    return false;
+}
+
 
 void Transformer::pushDynamicTransformation(const transformer::Transformation& tr)
 {

@@ -404,7 +404,7 @@ class Transformer
 	 * @param ts - the timestamp of the data item
 	 * @param data - the data added to the stream
 	 */
-	template <class T> void pushData( int idx, base::Time ts, const T& data )
+	template <class T> void pushData( int idx,const base::Time &ts, const T& data )
 	{
 	    aggregator.push(idx, ts, data);
 	};
@@ -420,6 +420,8 @@ class Transformer
 	{
 	    aggregator.setTimeout(t);
 	}
+	
+	bool getTransformation(const std::string& sourceFrame, const std::string& targetFrame, const base::Time& atTime, bool interpolate, transformer::Transformation& result);
 	
 	/**
 	 * Function for adding new Transformation samples.
