@@ -119,16 +119,19 @@ bool TransformationTree::getTransformationChain(std::string from, std::string to
     return false;
 }
 
-bool InverseTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, Eigen::Transform3d& tr)
+bool InverseTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, transformer::Transformation& tr)
 {
     if(nonInverseElement->getTransformation(atTime, doInterpolation, tr)){
-	tr = tr.inverse();
+	Eigen::Transform3d tr2(Eigen::Transform3d::Identity());
+	tr2 = tr;
+	tr2 = tr2.inverse();
+	tr.setTransform(tr2);
 	return true;
     }
     return false;
 };
 
-DynamicTransformationElement::DynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame, aggregator::StreamAligner& aggregator, base::Time period): TransformationElement(sourceFrame, targetFrame), aggregator(aggregator), gotTransform(false) 
+DynamicTransformationElement::DynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame, aggregator::StreamAligner& aggregator): TransformationElement(sourceFrame, targetFrame), aggregator(aggregator), gotTransform(false) 
 {
     //giving a buffersize of zero means no buffer limitation at all
     streamIdx = aggregator.registerStream<Transformation>(boost::bind( &transformer::DynamicTransformationElement::aggregatorCallback , this, _1, _2 ), 0, period, -10);
@@ -147,7 +150,7 @@ void DynamicTransformationElement::aggregatorCallback(const base::Time& ts, cons
     lastTransformTime = ts;
 }
 
-bool DynamicTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, Eigen::Transform3d& result)
+bool DynamicTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, transformer::Transformation& result)
 {
     if(!gotTransform)
     {
@@ -179,32 +182,33 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 	if(timeForward == 0) 
 	{
 	    //transform time is equal to sample time, no interpolation needed
-	    result = lastTransform.transform;
+	    result = lastTransform;
 
 	    return true;
 	}
 	
-	Eigen::Transform3d interpolated(Eigen::Transform3d::Identity());
-	
+	Transformation interpolated;
+	interpolated.initSane();
+
 	double timeBetweenTransforms = (next_sample.first - lastTransformTime).toSeconds();
 
 	assert(timeBetweenTransforms > timeForward);
 	
 	double factor = timeForward / timeBetweenTransforms;
 	
-	Eigen::Quaterniond start_r(lastTransform.transform.rotation());
-	Eigen::Quaterniond end_r(next_sample.second.transform.rotation());
+	Eigen::Quaterniond start_r(lastTransform.orientation);
+	Eigen::Quaterniond end_r(next_sample.second.orientation);
 	
-	interpolated.rotate(start_r.slerp(factor, end_r));
+	interpolated.orientation = (start_r.slerp(factor, end_r));
 	
-	Eigen::Vector3d start_t(lastTransform.transform.translation());
-	Eigen::Vector3d end_t(next_sample.second.transform.translation());
+	Eigen::Vector3d start_t(lastTransform.position);
+	Eigen::Vector3d end_t(next_sample.second.position);
 	
-	interpolated.translation() = start_t + (end_t - start_t) * factor; 
+	interpolated.position = start_t + (end_t - start_t) * factor; 
 
 	result = interpolated;
     } else {
-	result = lastTransform.transform;
+	result = lastTransform;
     }
 
     return true;
@@ -212,13 +216,13 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 
 bool TransformationMakerBase::getTransformation(const base::Time &time, Transformation& tr, bool doInterpolation)
 {
-    Transformation transformation;
-    
-    transformation.transform = Eigen::Transform3d::Identity();
-    transformation.from = sourceFrame;
-    transformation.to = targetFrame;
-    transformation.time = time;
-    
+    tr.initSane();
+    tr.sourceFrame = sourceFrame;
+    tr.targetFrame = targetFrame;
+    tr.time = time;
+
+    Eigen::Transform3d fullTransformation(Eigen::Transform3d::Identity());
+
     if(transformationChain.empty()) 
     {
 	return false;
@@ -226,15 +230,25 @@ bool TransformationMakerBase::getTransformation(const base::Time &time, Transfor
     
     for(std::vector<TransformationElement *>::const_iterator it = transformationChain.begin(); it != transformationChain.end(); it++)
     {
-	Eigen::Transform3d tr;
+	Transformation tr;
 	if(!(*it)->getTransformation(time, doInterpolation, tr))
 	{
 	    //no sample available, return
 	    return false;
 	}
 	
+	//TODO, this might be a costly operation
+	Eigen::Transform3d trans = tr;
+	
 	//apply transformation
-	transformation.transform = transformation.transform * tr;
+	fullTransformation = fullTransformation * trans;
+    }
+
+    
+    tr.setTransform(fullTransformation);
+    return true;
+}
+
     }
 
     tr = transformation;
@@ -243,20 +257,20 @@ bool TransformationMakerBase::getTransformation(const base::Time &time, Transfor
 
 void Transformer::pushDynamicTransformation(const transformer::Transformation& tr)
 {
-    std::map<std::pair<std::string, std::string>, int>::iterator it = transformToStreamIndex.find(std::make_pair(tr.from, tr.to));
+    std::map<std::pair<std::string, std::string>, int>::iterator it = transformToStreamIndex.find(std::make_pair(tr.sourceFrame, tr.targetFrame));
     
     //we got an unknown transformation
     if(it == transformToStreamIndex.end()) {
 	locked = true;
 
 	//create a representation of the dynamic transformation
-	DynamicTransformationElement *dynamicElement = new DynamicTransformationElement(tr.from, tr.to, aggregator, maxPeriod);
+	DynamicTransformationElement *dynamicElement = new DynamicTransformationElement(tr.sourceFrame, tr.targetFrame, aggregator);
 	
 	int streamIdx = dynamicElement->getStreamIdx();
 	
-	transformToStreamIndex[std::make_pair(tr.from, tr.to)] = streamIdx;
+	transformToStreamIndex[std::make_pair(tr.sourceFrame, tr.targetFrame)] = streamIdx;
 	
-	std::cout << "Registering new stream for transformation from " << tr.from << " to " << tr.to << " index is " << streamIdx << std::endl;
+	std::cout << "Registering new stream for transformation from " << tr.sourceFrame << " to " << tr.targetFrame << " index is " << streamIdx << std::endl;
 	
 	//add new dynamic element to transformation tree
 	transformationTree.addTransformation(dynamicElement);
@@ -273,7 +287,7 @@ void Transformer::pushDynamicTransformation(const transformer::Transformation& t
 	    }
 	}
 	
-	it = transformToStreamIndex.find(std::make_pair(tr.from, tr.to));
+	it = transformToStreamIndex.find(std::make_pair(tr.sourceFrame, tr.targetFrame));
 	assert(it != transformToStreamIndex.end());
     }
     
@@ -283,7 +297,7 @@ void Transformer::pushDynamicTransformation(const transformer::Transformation& t
 
 void Transformer::pushStaticTransformation(const transformer::Transformation& tr)
 {
-    transformationTree.addTransformation(new StaticTransformationElement(tr.from, tr.to, tr.transform));
+    transformationTree.addTransformation(new StaticTransformationElement(tr.sourceFrame, tr.targetFrame, tr));
 }
     
 void Transformer::addTransformationChain(std::string from, std::string to, const std::vector< TransformationElement* >& chain)

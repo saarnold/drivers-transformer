@@ -7,18 +7,12 @@
 #include <StreamAligner.hpp>
 #include <map>
 #include <boost/bind.hpp>
+#include <base/samples/rigid_body_state.h>
 
 namespace transformer {
  
-class Transformation
-{
-    public:
-	base::Time time;
-	Eigen::Transform3d transform;
-	std::string from;
-	std::string to;
-};
-
+typedef base::samples::RigidBodyState Transformation;
+    
 /**
  * This a base class, that represens an abstract transformation from sourceFrame to targetFrame. 
  * */
@@ -33,7 +27,7 @@ class TransformationElement {
 	 * 
 	 * Note if no transformation is available getTransformation will return false
 	 * */
-	virtual bool getTransformation(const base::Time &atTime, bool doInterpolation, Eigen::Transform3d &tr) = 0;
+	virtual bool getTransformation(const base::Time &atTime, bool doInterpolation, Transformation &tr) = 0;
 
 	/**
 	 * returns the name of the source frame
@@ -61,16 +55,16 @@ class TransformationElement {
  * */
 class StaticTransformationElement : public TransformationElement {
     public:
-	StaticTransformationElement(const std::string &sourceFrame, const std::string &targetFrame, const Eigen::Transform3d &transform) : TransformationElement(sourceFrame, targetFrame), staticTransform(transform) {};
+	StaticTransformationElement(const std::string &sourceFrame, const std::string &targetFrame, const Transformation &transform) : TransformationElement(sourceFrame, targetFrame), staticTransform(transform) {};
 	
-	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, Eigen::Transform3d& tr)
+	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, Transformation& tr)
 	{
 	    tr = staticTransform;
 	    return true;
 	};
 	
     private:
-	Eigen::Transform3d staticTransform;
+	Transformation staticTransform;
 };
 
 /**
@@ -80,10 +74,10 @@ class StaticTransformationElement : public TransformationElement {
  * */
 class DynamicTransformationElement : public TransformationElement {
     public:
-	DynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame, aggregator::StreamAligner& aggregator, base::Time period);
+	DynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame, aggregator::StreamAligner& aggregator);
 	~DynamicTransformationElement();
 	
-	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, Eigen::Transform3d& result);
+	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, Transformation& result);
 
 	int getStreamIdx() const
 	{
@@ -107,7 +101,7 @@ class DynamicTransformationElement : public TransformationElement {
 class InverseTransformationElement : public TransformationElement {
     public:
 	InverseTransformationElement(TransformationElement *source): TransformationElement(source->getTargetFrame(), source->getSourceFrame()), nonInverseElement(source) {};
-	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, Eigen::Transform3d& tr);
+	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, Transformation& tr);
     private:
 	TransformationElement *nonInverseElement;
 };
@@ -298,7 +292,7 @@ class Transformer
 	/**
 	 * This function registes a new data stream together with an callback. 
 	 * */
-	template <class T> int registerDataStream(base::Time dataPeriod, std::string dataFrame, std::string targetFrame, boost::function<void (const base::Time &ts, const T &value, const Transformation &t)> callback, bool interpolate)
+	template <class T> int registerDataStreamWithTransform(base::Time dataPeriod, std::string dataFrame, std::string targetFrame, boost::function<void (const base::Time &ts, const T &value, const Transformation &t)> callback, bool interpolate)
 	{
 	    if(locked)
 		throw std::runtime_error("Tried to register data stream, after adding dynamic transformations");
