@@ -134,7 +134,8 @@ bool InverseTransformationElement::getTransformation(const base::Time& atTime, b
 DynamicTransformationElement::DynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame, aggregator::StreamAligner& aggregator): TransformationElement(sourceFrame, targetFrame), aggregator(aggregator), gotTransform(false) 
 {
     //giving a buffersize of zero means no buffer limitation at all
-    streamIdx = aggregator.registerStream<Transformation>(boost::bind( &transformer::DynamicTransformationElement::aggregatorCallback , this, _1, _2 ), 0, period, -10);
+    //giving a period of zero means, block until next sample is available
+    streamIdx = aggregator.registerStream<Transformation>(boost::bind( &transformer::DynamicTransformationElement::aggregatorCallback , this, _1, _2 ), 0, base::Time(), -10);
 }
 
 DynamicTransformationElement::~DynamicTransformationElement()
@@ -261,7 +262,6 @@ void Transformer::pushDynamicTransformation(const transformer::Transformation& t
     
     //we got an unknown transformation
     if(it == transformToStreamIndex.end()) {
-	locked = true;
 
 	//create a representation of the dynamic transformation
 	DynamicTransformationElement *dynamicElement = new DynamicTransformationElement(tr.sourceFrame, tr.targetFrame, aggregator);
