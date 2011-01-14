@@ -14,7 +14,7 @@ namespace transformer {
 typedef base::samples::RigidBodyState Transformation;
     
 /**
- * This a base class, that represens an abstract transformation from sourceFrame to targetFrame. 
+ * This is a base class, that represens an abstract transformation from sourceFrame to targetFrame. 
  * */
 class TransformationElement {
     public:
@@ -222,7 +222,7 @@ class TransformationMakerBase
 };
 
 /**
- * Helper class, that will provide convenience callbacks 
+ * Helper class, that will provide a convenience callbacks 
  * */
 class PureTransformationMaker: public TransformationMakerBase {
     friend class Transformer;
@@ -248,7 +248,7 @@ class PureTransformationMaker: public TransformationMakerBase {
 };
 
 /**
- * Helper class, that will provide convenience callbacks 
+ * Helper class, that will provide a convenience callbacks 
  * */
 template <class T> class TransformationMaker: public TransformationMakerBase {
     friend class Transformer;
