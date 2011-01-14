@@ -48,3 +48,6 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/transformer.pc
 
 install(FILES Transformer.h
     DESTINATION ${CMAKE_INSTALL_PREFIX}/include/transformer/)
+
+install(FILES ${PROJECT_SOURCE_DIR}/orogen_plugin/transformer_plugin.rb
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/share/orogen/plugins)
