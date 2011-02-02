@@ -120,7 +120,7 @@ bool TransformationTree::getTransformationChain(std::string from, std::string to
     return false;
 }
 
-bool InverseTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, transformer::Transformation& tr)
+bool InverseTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, transformer::TransformationType& tr)
 {
     if(nonInverseElement->getTransformation(atTime, doInterpolation, tr)){
 	Eigen::Transform3d tr2(Eigen::Transform3d::Identity());
@@ -136,7 +136,7 @@ DynamicTransformationElement::DynamicTransformationElement(const std::string& so
 {
     //giving a buffersize of zero means no buffer limitation at all
     //giving a period of zero means, block until next sample is available
-    streamIdx = aggregator.registerStream<Transformation>(boost::bind( &transformer::DynamicTransformationElement::aggregatorCallback , this, _1, _2 ), 0, base::Time(), -10);
+    streamIdx = aggregator.registerStream<TransformationType>(boost::bind( &transformer::DynamicTransformationElement::aggregatorCallback , this, _1, _2 ), 0, base::Time(), -10);
 }
 
 DynamicTransformationElement::~DynamicTransformationElement()
@@ -144,7 +144,7 @@ DynamicTransformationElement::~DynamicTransformationElement()
     //FIXME, get jakob and figure out, how to remove streams
 }
 
-void DynamicTransformationElement::aggregatorCallback(const base::Time& ts, const transformer::Transformation& value)
+void DynamicTransformationElement::aggregatorCallback(const base::Time& ts, const transformer::TransformationType& value)
 {
     std::cout << "DynamicTransformationElement callback time : " << ts << std::endl;
     gotTransform = true;
@@ -152,7 +152,7 @@ void DynamicTransformationElement::aggregatorCallback(const base::Time& ts, cons
     lastTransformTime = ts;
 }
 
-bool DynamicTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, transformer::Transformation& result)
+bool DynamicTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, transformer::TransformationType& result)
 {
     if(!gotTransform)
     {
@@ -165,7 +165,7 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
     
     if(doInterpolation)
     {
-	std::pair<base::Time, Transformation> next_sample;
+	std::pair<base::Time, TransformationType> next_sample;
 	
 	if(!aggregator.getNextSample(streamIdx, next_sample))
 	{
@@ -189,7 +189,7 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 	    return true;
 	}
 	
-	Transformation interpolated;
+	TransformationType interpolated;
 	interpolated.initSane();
 
 	double timeBetweenTransforms = (next_sample.first - lastTransformTime).toSeconds();
@@ -216,7 +216,7 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
     return true;
 };
 
-bool TransformationMakerBase::getTransformation(const base::Time &time, Transformation& tr, bool doInterpolation)
+bool Transformation::get(const base::Time &time, TransformationType& tr, bool doInterpolation) const
 {
     tr.initSane();
     tr.sourceFrame = sourceFrame;
@@ -232,7 +232,7 @@ bool TransformationMakerBase::getTransformation(const base::Time &time, Transfor
     
     for(std::vector<TransformationElement *>::const_iterator it = transformationChain.begin(); it != transformationChain.end(); it++)
     {
-	Transformation tr;
+	TransformationType tr;
 	if(!(*it)->getTransformation(time, doInterpolation, tr))
 	{
 	    //no sample available, return
@@ -251,7 +251,7 @@ bool TransformationMakerBase::getTransformation(const base::Time &time, Transfor
     return true;
 }
 
-bool TransformationMakerBase::getTransformationChain(const base::Time& time, std::vector< Transformation >& tr, bool doInterpolation)
+bool Transformation::getChain(const base::Time& time, std::vector< TransformationType >& tr, bool doInterpolation) const
 {
     if(transformationChain.empty()) 
     {
@@ -260,7 +260,7 @@ bool TransformationMakerBase::getTransformationChain(const base::Time& time, std
 
     tr.resize(transformationChain.size());
 
-    Transformation transform;
+    TransformationType transform;
     
     int i = 0;
     
@@ -281,37 +281,15 @@ bool TransformationMakerBase::getTransformationChain(const base::Time& time, std
     return true;
 }
 
-bool Transformer::getTransformation(const std::string& sourceFrame, const std::string& targetFrame, const base::Time& atTime, bool interpolate, transformer::Transformation &result)
+Transformation& Transformer::registerTransformation(std::string sourceFrame, std::string targetFrame)
 {
-    //TODO faster seek
-    //look for existing chain, that matches our request
-    for(std::vector<TransformationMakerBase *>::iterator streams = transformationMakers.begin(); streams != transformationMakers.end(); streams++)
-    {
-	if((*streams)->getSourceFrame() == sourceFrame && (*streams)->getTargetFrame() == targetFrame)
-	{
-	    return (*streams)->getTransformation(atTime, result, interpolate);
-	}
-    }
-
-    //no chain there, try to create a new one 
-    std::vector< TransformationElement* > trChain;
-    if(transformationTree.getTransformationChain(sourceFrame, targetFrame, trChain))
-    {
-	std::cout << "Setting tr chain " << std::endl;
-	TransformationMakerBase *tmb = new TransformationMakerBase(sourceFrame, targetFrame);
-	tmb->setTransformationChain(trChain);
-	
-	transformationMakers.push_back(tmb);
-	
-	return tmb->getTransformation(atTime, result, interpolate);
-    }
-
-    //no chain available
-    return false;
+    Transformation *ret = new Transformation(sourceFrame, targetFrame);
+    transformations.push_back(ret);
+    
+    return *ret;
 }
 
-
-void Transformer::pushDynamicTransformation(const transformer::Transformation& tr)
+void Transformer::pushDynamicTransformation(const transformer::TransformationType& tr)
 {
     std::map<std::pair<std::string, std::string>, int>::iterator it = transformToStreamIndex.find(std::make_pair(tr.sourceFrame, tr.targetFrame));
     
@@ -331,34 +309,36 @@ void Transformer::pushDynamicTransformation(const transformer::Transformation& t
 	transformationTree.addTransformation(dynamicElement);
 	
 	//seek through all available data streams and update transformation chains
-	for(std::vector<TransformationMakerBase *>::iterator streams = transformationMakers.begin(); streams != transformationMakers.end(); streams++)
+	for(std::vector<Transformation *>::iterator transform = transformations.begin(); transform != transformations.end(); transform++)
 	{
 	    std::vector< TransformationElement* > trChain;
 	    
-	    if(transformationTree.getTransformationChain((*streams)->getSourceFrame(), (*streams)->getTargetFrame(), trChain))
+	    if(transformationTree.getTransformationChain((*transform)->getSourceFrame(), (*transform)->getTargetFrame(), trChain))
 	    {
 		std::cout << "Setting tr chain " << std::endl;
-		(*streams)->setTransformationChain(trChain);
+		(*transform)->setTransformationChain(trChain);
 	    }
 	}
 	
 	it = transformToStreamIndex.find(std::make_pair(tr.sourceFrame, tr.targetFrame));
 	assert(it != transformToStreamIndex.end());
     }
-    
+
+    std::cout << "Pushing sample for transformation from " << tr.sourceFrame << " to " << tr.targetFrame << " index is " << it->second << std::endl;
+
     //push sample
     aggregator.push(it->second, tr.time, tr);
 }
 
-void Transformer::pushStaticTransformation(const transformer::Transformation& tr)
+void Transformer::pushStaticTransformation(const transformer::TransformationType& tr)
 {
     transformationTree.addTransformation(new StaticTransformationElement(tr.sourceFrame, tr.targetFrame, tr));
 }
     
 void Transformer::addTransformationChain(std::string from, std::string to, const std::vector< TransformationElement* >& chain)
 {
-    for(std::vector<TransformationMakerBase *>::iterator it = transformationMakers.begin();
-	it != transformationMakers.end(); it++) 
+    for(std::vector<Transformation *>::iterator it = transformations.begin();
+	it != transformations.end(); it++) 
     {
 	if((*it)->getSourceFrame() == from && (*it)->getTargetFrame() == to)
 	{
@@ -370,11 +350,11 @@ void Transformer::addTransformationChain(std::string from, std::string to, const
     
 Transformer::~Transformer()
 {
-    for(std::vector<TransformationMakerBase *>::iterator it = transformationMakers.begin(); it != transformationMakers.end(); it++)
+    for(std::vector<Transformation *>::iterator it = transformations.begin(); it != transformations.end(); it++)
     {
 	delete *it;
     }
-    transformationMakers.clear();
+    transformations.clear();
 }
     
 }
