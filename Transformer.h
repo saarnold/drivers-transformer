@@ -255,7 +255,17 @@ class Transformer
 	{
 	    return aggregator.registerStream<bool>(boost::bind( callback, _1, boost::ref(transform) ), 0, base::Time());
 	}
-	
+
+	/**
+	 * This function registes a new data stream together with an callback. 
+	 * 
+	 * The callback will be called every time a new data sample is available.
+	 * */
+	template <class T> int registerDataStream(base::Time dataPeriod, boost::function<void (const base::Time &ts, const T &value)> callback)
+	{
+	    return aggregator.registerStream<T>(boost::bind( callback, _1, _2), 0, dataPeriod);
+	};
+
 	/**
 	 * This function registes a new data stream together with an callback. 
 	 * 
