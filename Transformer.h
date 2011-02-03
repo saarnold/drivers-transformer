@@ -21,8 +21,12 @@ class Transformation
 	Transformation(const std::string &sourceFrame, const std::string &targetFrame) : sourceFrame(sourceFrame), targetFrame(targetFrame) {};
 	std::string sourceFrame;
 	std::string targetFrame;
+	std::string sourceFrameMapped;
+	std::string targetFrameMapped;
 	std::vector<TransformationElement *> transformationChain;
 
+	void setFrameMapping(const std::string &frameName, const std::string &newName);
+	
 	/**
 	 * This function sets a new transformationChain
 	 * */
@@ -32,12 +36,19 @@ class Transformation
 	}
 
     public:
+	Transformation(const Transformation &other)
+	{
+	}
+	
 	/**
 	 * returns the souce frame
 	 * */
 	const std::string &getSourceFrame()
 	{
-	    return sourceFrame;
+	    if(sourceFrameMapped.empty())
+		return sourceFrame;
+	    
+	    return sourceFrameMapped;
 	}
 	
 	/**
@@ -45,7 +56,10 @@ class Transformation
 	 * */
 	const std::string &getTargetFrame()
 	{
-	    return targetFrame;
+	    if(targetFrameMapped.empty())
+		return targetFrame;
+	    
+	    return targetFrameMapped;
 	}	
 	
 	/**
@@ -223,6 +237,8 @@ class Transformer
 	std::vector<Transformation *> transformations;
 	TransformationTree transformationTree;
 
+	void recomputeAvailableTransformations();
+	
     public:
 	
 	Transformer() {};
@@ -326,6 +342,9 @@ class Transformer
 	 * */
 	void pushStaticTransformation(const TransformationType &tr);
 
+	
+	void setFrameMapping(const std::string &frameName, const std::string &newName);
+	
 	
 	/**
 	 * Destructor, deletes the TransformationMakers

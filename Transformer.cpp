@@ -281,12 +281,37 @@ bool Transformation::getChain(const base::Time& time, std::vector< Transformatio
     return true;
 }
 
+void Transformation::setFrameMapping(const std::string& frameName, const std::string& newName)
+{
+    if(sourceFrame == frameName)
+	sourceFrameMapped = newName;
+    
+    if(targetFrame == frameName)
+	targetFrameMapped = newName;
+}
+
+
 Transformation& Transformer::registerTransformation(std::string sourceFrame, std::string targetFrame)
 {
     Transformation *ret = new Transformation(sourceFrame, targetFrame);
     transformations.push_back(ret);
     
     return *ret;
+}
+
+void Transformer::recomputeAvailableTransformations()
+{
+    //seek through all available data streams and update transformation chains
+    for(std::vector<Transformation *>::iterator transform = transformations.begin(); transform != transformations.end(); transform++)
+    {
+	std::vector< TransformationElement* > trChain;
+	
+	if(transformationTree.getTransformationChain((*transform)->getSourceFrame(), (*transform)->getTargetFrame(), trChain))
+	{
+	    std::cout << "Setting tr chain " << std::endl;
+	    (*transform)->setTransformationChain(trChain);
+	}
+    }
 }
 
 void Transformer::pushDynamicTransformation(const transformer::TransformationType& tr)
@@ -307,18 +332,8 @@ void Transformer::pushDynamicTransformation(const transformer::TransformationTyp
 	
 	//add new dynamic element to transformation tree
 	transformationTree.addTransformation(dynamicElement);
-	
-	//seek through all available data streams and update transformation chains
-	for(std::vector<Transformation *>::iterator transform = transformations.begin(); transform != transformations.end(); transform++)
-	{
-	    std::vector< TransformationElement* > trChain;
-	    
-	    if(transformationTree.getTransformationChain((*transform)->getSourceFrame(), (*transform)->getTargetFrame(), trChain))
-	    {
-		std::cout << "Setting tr chain " << std::endl;
-		(*transform)->setTransformationChain(trChain);
-	    }
-	}
+
+	recomputeAvailableTransformations();
 	
 	it = transformToStreamIndex.find(std::make_pair(tr.sourceFrame, tr.targetFrame));
 	assert(it != transformToStreamIndex.end());
@@ -333,6 +348,16 @@ void Transformer::pushDynamicTransformation(const transformer::TransformationTyp
 void Transformer::pushStaticTransformation(const transformer::TransformationType& tr)
 {
     transformationTree.addTransformation(new StaticTransformationElement(tr.sourceFrame, tr.targetFrame, tr));
+    recomputeAvailableTransformations();
+}
+
+void Transformer::setFrameMapping(const std::string& frameName, const std::string& newName)
+{
+    for(std::vector<Transformation *>::iterator transform = transformations.begin(); transform != transformations.end(); transform++)
+    {
+	(*transform)->setFrameMapping(frameName, newName);
+    }
+    recomputeAvailableTransformations();
 }
     
 void Transformer::addTransformationChain(std::string from, std::string to, const std::vector< TransformationElement* >& chain)
