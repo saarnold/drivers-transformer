@@ -316,6 +316,9 @@ void Transformer::recomputeAvailableTransformations()
 
 void Transformer::pushDynamicTransformation(const transformer::TransformationType& tr)
 {
+    if(tr.sourceFrame == "" || tr.targetFrame == "")
+	throw std::runtime_error("Static transformation with empty target or source frame given");
+    
     std::map<std::pair<std::string, std::string>, int>::iterator it = transformToStreamIndex.find(std::make_pair(tr.sourceFrame, tr.targetFrame));
     
     //we got an unknown transformation
@@ -347,6 +350,9 @@ void Transformer::pushDynamicTransformation(const transformer::TransformationTyp
 
 void Transformer::pushStaticTransformation(const transformer::TransformationType& tr)
 {
+    if(tr.sourceFrame == "" || tr.targetFrame == "")
+	throw std::runtime_error("Static transformation with empty target or source frame given");
+    
     transformationTree.addTransformation(new StaticTransformationElement(tr.sourceFrame, tr.targetFrame, tr));
     recomputeAvailableTransformations();
 }
