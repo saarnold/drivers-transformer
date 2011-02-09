@@ -146,7 +146,6 @@ DynamicTransformationElement::~DynamicTransformationElement()
 
 void DynamicTransformationElement::aggregatorCallback(const base::Time& ts, const transformer::TransformationType& value)
 {
-    std::cout << "DynamicTransformationElement callback time : " << ts << std::endl;
     gotTransform = true;
     lastTransform = value;
     lastTransformTime = ts;
@@ -160,8 +159,6 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 	//no sample available, return
 	return false;
     }
-    
-    std::cout << "Cur sample time " << lastTransformTime << std::endl;
     
     if(doInterpolation)
     {
