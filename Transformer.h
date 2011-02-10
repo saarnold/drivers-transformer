@@ -35,11 +35,11 @@ class Transformation
 	    transformationChain = chain;
 	}
 
-    public:
 	Transformation(const Transformation &other)
 	{
 	}
 	
+    public:
 	/**
 	 * returns the souce frame
 	 * */
