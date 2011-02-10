@@ -70,6 +70,8 @@ class Transformation
 	 * */
 	bool get(const base::Time& atTime, transformer::TransformationType& result, bool interpolate) const;
 	bool getChain(const base::Time& atTime, std::vector<TransformationType>& result, bool interpolate) const;
+	bool get(const base::Time& atTime, Eigen::Transform3d& result, bool interpolate) const;
+	bool getChain(const base::Time& atTime, std::vector<Eigen::Transform3d>& result, bool interpolate) const;
 };
 
 /**

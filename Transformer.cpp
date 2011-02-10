@@ -155,7 +155,6 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 {
     if(!gotTransform)
     {
-	std::cout << "no sample available yet" << std::endl;
 	//no sample available, return
 	return false;
     }
@@ -213,13 +212,8 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
     return true;
 };
 
-bool Transformation::get(const base::Time &time, TransformationType& tr, bool doInterpolation) const
+bool Transformation::get(const base::Time& atTime, Eigen::Transform3d& result, bool interpolate) const
 {
-    tr.initSane();
-    tr.sourceFrame = sourceFrame;
-    tr.targetFrame = targetFrame;
-    tr.time = time;
-
     Eigen::Transform3d fullTransformation(Eigen::Transform3d::Identity());
 
     if(transformationChain.empty()) 
@@ -230,7 +224,7 @@ bool Transformation::get(const base::Time &time, TransformationType& tr, bool do
     for(std::vector<TransformationElement *>::const_iterator it = transformationChain.begin(); it != transformationChain.end(); it++)
     {
 	TransformationType tr;
-	if(!(*it)->getTransformation(time, doInterpolation, tr))
+	if(!(*it)->getTransformation(atTime, interpolate, tr))
 	{
 	    //no sample available, return
 	    return false;
@@ -243,6 +237,21 @@ bool Transformation::get(const base::Time &time, TransformationType& tr, bool do
 	fullTransformation = fullTransformation * trans;
     }
 
+    return true;
+}
+
+
+bool Transformation::get(const base::Time &time, TransformationType& tr, bool doInterpolation) const
+{
+    tr.initSane();
+    tr.sourceFrame = sourceFrame;
+    tr.targetFrame = targetFrame;
+    tr.time = time;
+
+    Eigen::Transform3d fullTransformation;
+    bool ret = get(time, fullTransformation, doInterpolation);
+    if(!ret)
+	return false;
     
     tr.setTransform(fullTransformation);
     return true;
@@ -278,6 +287,24 @@ bool Transformation::getChain(const base::Time& time, std::vector< Transformatio
     return true;
 }
 
+bool Transformation::getChain(const base::Time& atTime, std::vector< Eigen::Transform3d >& result, bool interpolate) const
+{
+    std::vector< TransformationType > intern;
+    bool ret = getChain(atTime, intern, interpolate);
+    if(!ret)
+	return false;
+    
+    result.resize(intern.size());
+    std::vector<Eigen::Transform3d >::iterator it_out = result.begin();
+    for(std::vector<TransformationType >::const_iterator it = intern.begin(); it != intern.end(); it++)
+    {
+	*it_out = *it;
+	it_out++;
+    }
+    
+    return true;
+}
+
 void Transformation::setFrameMapping(const std::string& frameName, const std::string& newName)
 {
     if(sourceFrame == frameName)
@@ -305,7 +332,6 @@ void Transformer::recomputeAvailableTransformations()
 	
 	if(transformationTree.getTransformationChain((*transform)->getSourceFrame(), (*transform)->getTargetFrame(), trChain))
 	{
-	    std::cout << "Setting tr chain " << std::endl;
 	    (*transform)->setTransformationChain(trChain);
 	}
     }
@@ -338,8 +364,6 @@ void Transformer::pushDynamicTransformation(const transformer::TransformationTyp
 	it = transformToStreamIndex.find(std::make_pair(tr.sourceFrame, tr.targetFrame));
 	assert(it != transformToStreamIndex.end());
     }
-
-    std::cout << "Pushing sample for transformation from " << tr.sourceFrame << " to " << tr.targetFrame << " index is " << it->second << std::endl;
 
     //push sample
     aggregator.push(it->second, tr.time, tr);
