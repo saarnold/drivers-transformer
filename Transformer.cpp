@@ -214,7 +214,7 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 
 bool Transformation::get(const base::Time& atTime, Eigen::Transform3d& result, bool interpolate) const
 {
-    Eigen::Transform3d fullTransformation(Eigen::Transform3d::Identity());
+    result = Eigen::Transform3d::Identity();
 
     if(transformationChain.empty()) 
     {
@@ -234,7 +234,7 @@ bool Transformation::get(const base::Time& atTime, Eigen::Transform3d& result, b
 	Eigen::Transform3d trans = tr;
 	
 	//apply transformation
-	fullTransformation = fullTransformation * trans;
+	result = result * trans;
     }
 
     return true;
