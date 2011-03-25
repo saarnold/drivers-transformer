@@ -165,7 +165,7 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 	
 	if(!aggregator.getNextSample(streamIdx, next_sample))
 	{
-	    std::cout << "could not get next sample" << std::endl;
+	    std::cout << "Transformer: could not get next sample" << std::endl;
 	    //not enought samples for itnerpolation available
 	    return false;
 	}
@@ -340,8 +340,11 @@ void Transformer::recomputeAvailableTransformations()
 void Transformer::pushDynamicTransformation(const transformer::TransformationType& tr)
 {
     if(tr.sourceFrame == "" || tr.targetFrame == "")
-	throw std::runtime_error("Static transformation with empty target or source frame given");
-    
+	throw std::runtime_error("Dynamic transformation with empty target or source frame given");
+
+    if(tr.time.isNull())
+	throw std::runtime_error("Dynamic transformation without time given (or it is 1970 ;-P)");
+
     std::map<std::pair<std::string, std::string>, int>::iterator it = transformToStreamIndex.find(std::make_pair(tr.sourceFrame, tr.targetFrame));
     
     //we got an unknown transformation
