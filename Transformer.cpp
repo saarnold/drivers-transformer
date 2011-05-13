@@ -123,7 +123,7 @@ bool TransformationTree::getTransformationChain(std::string from, std::string to
 bool InverseTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, transformer::TransformationType& tr)
 {
     if(nonInverseElement->getTransformation(atTime, doInterpolation, tr)){
-	Eigen::Transform3d tr2(Eigen::Transform3d::Identity());
+	Eigen::Affine3d tr2(Eigen::Affine3d::Identity());
 	tr2 = tr;
 	tr2 = tr2.inverse();
 	tr.setTransform(tr2);
@@ -222,9 +222,9 @@ void TransformationTree::clear()
     availableElements.clear();
 }
 
-bool Transformation::get(const base::Time& atTime, Eigen::Transform3d& result, bool interpolate) const
+bool Transformation::get(const base::Time& atTime, Eigen::Affine3d& result, bool interpolate) const
 {
-    result = Eigen::Transform3d::Identity();
+    result = Eigen::Affine3d::Identity();
 
     if(transformationChain.empty()) 
     {
@@ -241,7 +241,7 @@ bool Transformation::get(const base::Time& atTime, Eigen::Transform3d& result, b
 	}
 	
 	//TODO, this might be a costly operation
-	Eigen::Transform3d trans = tr;
+	Eigen::Affine3d trans = tr;
 	
 	//apply transformation
 	result = result * trans;
@@ -258,7 +258,7 @@ bool Transformation::get(const base::Time &time, TransformationType& tr, bool do
     tr.targetFrame = targetFrame;
     tr.time = time;
 
-    Eigen::Transform3d fullTransformation;
+    Eigen::Affine3d fullTransformation;
     bool ret = get(time, fullTransformation, doInterpolation);
     if(!ret)
 	return false;
@@ -297,7 +297,7 @@ bool Transformation::getChain(const base::Time& time, std::vector< Transformatio
     return true;
 }
 
-bool Transformation::getChain(const base::Time& atTime, std::vector< Eigen::Transform3d >& result, bool interpolate) const
+bool Transformation::getChain(const base::Time& atTime, std::vector< Eigen::Affine3d >& result, bool interpolate) const
 {
     std::vector< TransformationType > intern;
     bool ret = getChain(atTime, intern, interpolate);
@@ -305,7 +305,7 @@ bool Transformation::getChain(const base::Time& atTime, std::vector< Eigen::Tran
 	return false;
     
     result.resize(intern.size());
-    std::vector<Eigen::Transform3d >::iterator it_out = result.begin();
+    std::vector<Eigen::Affine3d >::iterator it_out = result.begin();
     for(std::vector<TransformationType >::const_iterator it = intern.begin(); it != intern.end(); it++)
     {
 	*it_out = *it;
