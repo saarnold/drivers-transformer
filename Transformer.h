@@ -68,10 +68,10 @@ class Transformation
 	 * If no chain, or no transformation samples are available the function will return false
 	 * Else it will return true and store the requested transformation in @param result
 	 * */
-	bool get(const base::Time& atTime, transformer::TransformationType& result, bool interpolate) const;
-	bool getChain(const base::Time& atTime, std::vector<TransformationType>& result, bool interpolate) const;
-	bool get(const base::Time& atTime, Eigen::Affine3d& result, bool interpolate) const;
-	bool getChain(const base::Time& atTime, std::vector<Eigen::Affine3d>& result, bool interpolate) const;
+	bool get(const base::Time& atTime, transformer::TransformationType& result, bool interpolate = false) const;
+	bool getChain(const base::Time& atTime, std::vector<TransformationType>& result, bool interpolate = false) const;
+	bool get(const base::Time& atTime, Eigen::Affine3d& result, bool interpolate = false) const;
+	bool getChain(const base::Time& atTime, std::vector<Eigen::Affine3d>& result, bool interpolate = false) const;
 };
 
 /**
@@ -379,6 +379,15 @@ class Transformer
 	
 	void setFrameMapping(const std::string &frameName, const std::string &newName);
 	
+
+	/** 
+	 * @return the status of the StreamAligner, which contains current latency
+	 * and buffer fill sizes of the individual streams.
+	 */
+	const aggregator::StreamAlignerStatus& getStatus()
+	{
+	    return aggregator.getStatus();
+	}
 	
 	/**
 	 * Destructor, deletes the TransformationMakers
