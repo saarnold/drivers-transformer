@@ -165,7 +165,7 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 	
 	if(!aggregator.getNextSample(streamIdx, next_sample))
 	{
-	    std::cout << "Transformer: could not get next sample" << std::endl;
+	    //std::cout << "Transformer: could not get next sample" << std::endl;
 	    //not enought samples for itnerpolation available
 	    return false;
 	}
