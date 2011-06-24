@@ -136,7 +136,7 @@ DynamicTransformationElement::DynamicTransformationElement(const std::string& so
 {
     //giving a buffersize of zero means no buffer limitation at all
     //giving a period of zero means, block until next sample is available
-    streamIdx = aggregator.registerStream<TransformationType>(boost::bind( &transformer::DynamicTransformationElement::aggregatorCallback , this, _1, _2 ), 0, base::Time(), -10);
+    streamIdx = aggregator.registerStream<TransformationType>(boost::bind( &transformer::DynamicTransformationElement::aggregatorCallback , this, _1, _2 ), 0, base::Time(), -10, sourceFrame + std::string("2") + targetFrame);
 }
 
 DynamicTransformationElement::~DynamicTransformationElement()
