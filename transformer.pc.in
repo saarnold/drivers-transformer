@@ -6,6 +6,7 @@ includedir=${prefix}/include
 Name: transformer
 Description: A library for frame transformations
 Version: @PROJECT_VERSION@
+Requires: aggregator
 Libs: -L${libdir} -ltransformer
 Cflags: -I${includedir}
 
