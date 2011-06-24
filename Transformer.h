@@ -341,6 +341,14 @@ class Transformer
 	    return aggregator.step();
 	}
 	
+	/**
+	 * Get debug output of underlying stream aligner
+	 * */
+	const aggregator::StreamAlignerStatus &getStreamAlignerStatus()
+	{
+	    return aggregator.getStatus();
+	}
+	
 	void setTimeout(const base::Time &t )
 	{
 	    aggregator.setTimeout(t);
