@@ -141,7 +141,7 @@ DynamicTransformationElement::DynamicTransformationElement(const std::string& so
 
 DynamicTransformationElement::~DynamicTransformationElement()
 {
-    //FIXME, get jakob and figure out, how to remove streams
+    aggregator.unregisterStream(streamIdx);
 }
 
 void DynamicTransformationElement::aggregatorCallback(const base::Time& ts, const transformer::TransformationType& value)
@@ -211,6 +211,16 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 
     return true;
 };
+
+void TransformationTree::clear()
+{
+    for(std::vector<TransformationElement *>::iterator it = availableElements.begin(); it != availableElements.end(); it++)
+    {
+	delete *it;
+    }
+    
+    availableElements.clear();
+}
 
 bool Transformation::get(const base::Time& atTime, Eigen::Transform3d& result, bool interpolate) const
 {
@@ -401,7 +411,25 @@ void Transformer::addTransformationChain(std::string from, std::string to, const
 	}
     }
 }
+
+void Transformer::clear()
+{
+    //clear all known transformation chains
+    for(std::vector<Transformation *>::iterator it = transformations.begin(); it != transformations.end(); it++)
+    {
+	std::vector<TransformationElement *> emptyChain;
+	(*it)->setTransformationChain(emptyChain);
+    }
+
+    //clear index mapping
+    transformToStreamIndex.clear();
     
+    //clear transformation tree
+    transformationTree.clear();
+    
+    //clear data samples in the aggregator
+    aggregator.clear();
+}
     
 Transformer::~Transformer()
 {

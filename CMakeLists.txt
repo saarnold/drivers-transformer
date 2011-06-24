@@ -35,7 +35,7 @@ ADD_LIBRARY(transformer SHARED
 find_package( Boost COMPONENTS unit_test_framework )
 
 add_executable(TransformTest TestTransformationMaker.cpp)
-target_link_libraries(TransformTest transformer  ${Boost_LIBRARIES} )
+target_link_libraries(TransformTest transformer  ${Boost_LIBRARIES} ${AGGREGATOR_LIBRARIES})
 
 configure_file(transformer.pc.in transformer.pc @ONLY)
 

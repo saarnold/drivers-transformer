@@ -80,7 +80,8 @@ class Transformation
 class TransformationElement {
     public:
 	TransformationElement(const std::string &sourceFrame, const std::string &targetFrame): sourceFrame(sourceFrame), targetFrame(targetFrame) {};
-
+	virtual ~TransformationElement() {};
+	
 	/**
 	 * This method my be asked for a concrete transformation at a time X.
 	 * On request this should should interpolate the transformation to
@@ -136,7 +137,7 @@ class StaticTransformationElement : public TransformationElement {
 class DynamicTransformationElement : public TransformationElement {
     public:
 	DynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame, aggregator::StreamAligner& aggregator);
-	~DynamicTransformationElement();
+	virtual ~DynamicTransformationElement();
 	
 	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& result);
 
@@ -204,6 +205,11 @@ class TransformationTree
 	 * */
 	~TransformationTree();	
 	
+	/**
+	 * Deletes all available TransformationElements
+	 * */
+	void clear();
+	
     private:
 	///maximum seek depth while trying to find a transformationChain
 	const int maxSeekDepth;
@@ -244,6 +250,16 @@ class Transformer
     public:
 	
 	Transformer() {};
+	
+	/**
+	 * Deletes all dynamic and static transformations
+	 * that are known to the transformer.
+	 * 
+	 * Also deletes all samples in the data streams
+	 * 
+	 * Callbacks and setups for the data streams are NOT deleted by this method.
+	 * */
+	void clear();
 	
 	/**
 	 * This function may be used to manually set a transformation chain.

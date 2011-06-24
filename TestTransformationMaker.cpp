@@ -229,6 +229,77 @@ BOOST_AUTO_TEST_CASE( automatic_chain_generation_complex )
     BOOST_CHECK_EQUAL( gotSample, true );
 }
 
+BOOST_AUTO_TEST_CASE( clearing )
+{
+    defaultInit();
+    std::cout << std::endl << "Testcase clearing of transformations" << std::endl;
+    transformer::Transformer tf;
+    base::samples::LaserScan ls;
+    ls.time = base::Time::fromSeconds(10);
+    
+    TransformationType robot2Body;
+    robot2Body.sourceFrame = "robot";
+    robot2Body.targetFrame = "body";
+    robot2Body.time = base::Time::fromSeconds(10);
+    robot2Body.orientation = Eigen::Quaterniond::Identity();
+    robot2Body.position = Eigen::Vector3d(10,0,0);
+
+    
+    TransformationType head2Body;
+    head2Body.sourceFrame = "head";
+    head2Body.targetFrame = "body";
+    head2Body.time = base::Time::fromSeconds(10);
+    head2Body.orientation = Eigen::Quaterniond::Identity();
+    head2Body.position = Eigen::Vector3d(10,0,0);
+
+    TransformationType head2Laser;
+    head2Laser.sourceFrame = "head";
+    head2Laser.targetFrame = "laser";
+    head2Laser.time = base::Time::fromSeconds(10);
+    head2Laser.orientation = Eigen::Quaterniond::Identity();
+    head2Laser.position = Eigen::Vector3d(10,0,0);
+
+    Transformation &t = tf.registerTransformation("robot", "laser");
+    int ls_idx = tf.registerDataStreamWithTransform<base::samples::LaserScan>(base::Time::fromSeconds(8), t, &ls_callback, -1, std::string("ls_samples"));
+    tf.pushData(ls_idx, ls.time, ls);    
+//     tf.pushData(ls_idx, base::Time::fromSeconds(11), ls);    
+    
+    tf.pushStaticTransformation(robot2Body);
+    tf.pushDynamicTransformation(head2Body);
+    tf.pushDynamicTransformation(head2Laser);
+
+    gotCallback = false;
+    gotSample = false;
+
+    tf.clear();
+    
+    while(tf.step())
+    {
+    }
+    
+    std::cout << tf.getStreamAlignerStatus() << std::endl;
+    
+    BOOST_CHECK_EQUAL( gotCallback, false );
+    BOOST_CHECK_EQUAL( gotSample, false );
+    
+    ls.time = base::Time::fromSeconds(10);    
+    tf.pushData(ls_idx, ls.time, ls);    
+//     tf.pushData(ls_idx, base::Time::fromSeconds(11), ls);    
+    
+    tf.pushStaticTransformation(robot2Body);
+    tf.pushDynamicTransformation(head2Body);
+    tf.pushDynamicTransformation(head2Laser);
+
+    while(tf.step())
+    {
+    }
+    
+    std::cout << tf.getStreamAlignerStatus() << std::endl;
+    
+    BOOST_CHECK_EQUAL( gotCallback, true );
+    BOOST_CHECK_EQUAL( gotSample, true );
+}
+
 BOOST_AUTO_TEST_CASE( automatic_chain_generation_complex_remapp )
 {
     defaultInit();
@@ -260,7 +331,7 @@ BOOST_AUTO_TEST_CASE( automatic_chain_generation_complex_remapp )
     head2Laser.position = Eigen::Vector3d(10,0,0);
 
     Transformation &t = tf.registerTransformation("robot", "horst");
-    int ls_idx = tf.registerDataStreamWithTransform<base::samples::LaserScan>(base::Time::fromSeconds(8), t, &ls_callback);
+    int ls_idx = tf.registerDataStreamWithTransform<base::samples::LaserScan>(base::Time::fromSeconds(8), t, &ls_callback, -1, std::string("ls_samples"));
     tf.pushData(ls_idx, ls.time, ls);    
 //     tf.pushData(ls_idx, base::Time::fromSeconds(11), ls);    
     
@@ -324,39 +395,7 @@ BOOST_AUTO_TEST_CASE( interpolate )
     
 //     BOOST_CHECK_EQUAL( lastTransform.time, base::Time::fromMicroseconds(10000) );
     
-    BOOST_CHECK_EQUAL( eulerAngles.x(), 45);
-    BOOST_CHECK_EQUAL( eulerAngles.y(), 0);
-    BOOST_CHECK_EQUAL( eulerAngles.z(), 0);
-    
-    BOOST_CHECK_EQUAL( translation.x(), 5);
-    BOOST_CHECK_EQUAL( translation.y(), 0);
-    BOOST_CHECK_EQUAL( translation.z(), 0);
-
-}
-
-BOOST_AUTO_TEST_CASE( register_data_stream_after_dyn_transform )
-{
-    std::cout << std::endl << "Testcase wrong stream order" << std::endl;
-    transformer::Transformer tf;
-    
-    TransformationType robot2laser;
-    robot2laser.sourceFrame = "robot";
-    robot2laser.targetFrame = "laser";
-    robot2laser.time = base::Time::fromMicroseconds(5000);
-    robot2laser.orientation = Eigen::Quaterniond::Identity();
-    robot2laser.position = Eigen::Vector3d(10,0,0);
-
-    tf.pushDynamicTransformation(robot2laser);
-
-    bool threw(false);
-    
-    try {	
-	Transformation &t = tf.registerTransformation("laser", "robot");
-	int ls_idx = tf.registerDataStreamWithTransform<base::samples::LaserScan>(base::Time::fromMicroseconds(10000), t, &ls_callback);
-    } catch (std::runtime_error e) {
-	threw = true;
-    }
-
-    BOOST_CHECK_EQUAL( threw, true );
+    BOOST_CHECK_EQUAL (eulerAngles.isApprox(Eigen::Vector3d(45,0,0)), true);
+    BOOST_CHECK_EQUAL (translation.isApprox(Eigen::Vector3d(5,0,0)), true);    
 }
 
