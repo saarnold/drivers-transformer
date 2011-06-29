@@ -311,6 +311,14 @@ class Transformer
 	};
 
 	/**
+	 * This function unregistes a data stream. 
+	 * */
+	void unregisterDataStream(int idx)
+	{
+	    return aggregator.unregisterStream(idx);
+	};
+	
+	/**
 	 * Overloaded function, for Transformations, for convenience.
 	 * 
 	 * calls pushDynamicTransformation interally.
