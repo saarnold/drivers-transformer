@@ -4,7 +4,7 @@
 #include <Eigen/Geometry>
 #include <string>
 #include <base/time.h>
-#include <StreamAligner.hpp>
+#include <aggregator/StreamAligner.hpp>
 #include <map>
 #include <boost/bind.hpp>
 #include <base/samples/rigid_body_state.h>
