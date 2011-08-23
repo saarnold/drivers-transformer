@@ -1,12 +1,7 @@
+frames :laser, :body, :head, :tilt_head, :odometry    
 
-available_frames(
- :laser, :body, :head, :tilt_head, :odometry    
-)
-
-DynamicTransformation(:laser, :tilt_head, 'producer')
-DynamicTransformation(:body, :odometry, 'producer')
-#DynamicTransformation(:bla, :odometry, 'producer')
-#DynamicTransformation(:bla, :blub, 'producer')
-StaticTransformation(:tilt_head, :head)
-StaticTransformation(:head, :body)
+dynamic_transform(:laser, :tilt_head, 'producer')
+dynamic_transform(:body, :odometry, 'producer')
+static_transform(:tilt_head, :head, Eigen::Vector3.new(0, 1, 0))
+static_transform(:head, :body, Eigen::Quaternion.Identity)
 
