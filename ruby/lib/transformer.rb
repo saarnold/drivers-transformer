@@ -180,10 +180,8 @@ module Transformer
 
         # Returns the shortest transformation chains that link +from+ to +to+
         def transformation_chain(from, to)
-            if(!conf)
-                throw("Not initialized yet, did you forget to load the configuration ?")
-            end
-
+            from = from.to_s
+            to = to.to_s
             checker.check_frame(from, conf.frames)
             checker.check_frame(to, conf.frames)
 
