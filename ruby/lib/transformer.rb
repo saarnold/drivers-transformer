@@ -1,4 +1,5 @@
 require 'utilrb/kernel/load_dsl_file'
+require 'eigen'
 require 'set'
 
 module Transformer
