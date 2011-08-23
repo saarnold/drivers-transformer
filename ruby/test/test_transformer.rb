@@ -40,7 +40,21 @@ class TC_Transformer < Test::Unit::TestCase
         assert_equal([false, true, false], chain.inversions)
     end
 
-    def test_transformation_chain_with_loops
+    def test_transformation_chain_with_loop_ignored
+        conf.frames "body", "servo_low", "servo_high", "laser", "camera", "camera_optical"
+
+        transforms = [
+            conf.static_transform("body", "servo_low", Eigen::Vector3.new(0, 0, 0)),
+            conf.dynamic_transform("servo_high", "servo_low", "dynamixel"),
+            conf.static_transform("servo_high", "laser", Eigen::Vector3.new(0, 0, 0)),
+            conf.static_transform("servo_low", "body", Eigen::Vector3.new(0, 0, 0))
+        ]
+        chain = trsf.transformation_chain("body", "laser")
+        assert_equal(transforms[0, 3], chain.links)
+        assert_equal([false, true, false], chain.inversions)
+    end
+
+    def test_transformation_chain_with_loop_shortest_path
         conf.frames "body", "servo_low", "servo_high", "laser", "camera", "camera_optical"
 
         transforms = [
