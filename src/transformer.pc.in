@@ -3,10 +3,10 @@ exec_prefix=@CMAKE_INSTALL_PREFIX@
 libdir=${prefix}/lib
 includedir=${prefix}/include
 
-Name: transformer
-Description: A library for frame transformations
+Name: @TARGET_NAME@
+Description: @PROJECT_DESCRIPTION@
 Version: @PROJECT_VERSION@
-Requires: aggregator
-Libs: -L${libdir} -ltransformer
+Requires: @DEPS_PKGCONFIG@
+Libs: -L${libdir} -l@TARGET_NAME@
 Cflags: -I${includedir}
 

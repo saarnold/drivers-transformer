@@ -8,7 +8,7 @@
 #include <boost/test/execution_monitor.hpp>  
 
 #include <Eigen/Geometry>
-#include "Transformer.h"
+#include <transformer/Transformer.hpp>
 #include <base/samples/laser_scan.h>
 #include <Eigen/SVD>
 
