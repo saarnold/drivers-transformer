@@ -5,6 +5,3 @@ include($ENV{ROCK_CMAKE_MACROS}/Rock.cmake)
 rock_init(transformer 0.1)
 rock_standard_layout()
 
-install(FILES ${PROJECT_SOURCE_DIR}/orogen_plugin/transformer_plugin.rb
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/share/orogen/plugins)
-
