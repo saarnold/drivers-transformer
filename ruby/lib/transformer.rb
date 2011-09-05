@@ -1,8 +1,11 @@
 require 'utilrb/kernel/load_dsl_file'
 require 'eigen'
 require 'set'
+require 'utilrb/logger'
 
 module Transformer
+    extend Logger::Root("Transformer", Logger::WARN)
+
     # Abstract representation of a geometric frame
     class Frame
         # The name of the frame
