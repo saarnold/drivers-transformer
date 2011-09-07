@@ -132,7 +132,7 @@ module Transformer
     # * a ConfigurationChecker object that can validate the various parts in the
     #   configuration
     #
-    class Transformer
+    class TransformationManager
         # The object that holds frame and transformation definitions. It is
         # usually a Configuration object
         attr_accessor :conf

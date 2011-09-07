@@ -9,7 +9,7 @@ class TC_Transformer < Test::Unit::TestCase
     def conf; trsf.conf end
 
     def setup
-        @trsf = Transformer::Transformer.new
+        @trsf = Transformer::TransformationManager.new
     end
 
     def test_simple_transformation_chain
