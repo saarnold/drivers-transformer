@@ -11,6 +11,21 @@ require 'utilrb/logger'
 module Transformer
     extend Logger::Root("Transformer", Logger::WARN)
 
+    # True if +port+ is a valid port to hold transformation information
+    def self.transform_port?(port)
+        transform_type?(port.type)
+    end
+
+    # True if +type+ is a type to represent transformations
+    #
+    # @arg [String,Typelib::Type] the typename or type object to test against
+    def self.transform_type?(type)
+        if type.respond_to?(:name)
+            type = type.name
+        end
+        return type == "/base/samples/RigidBodyState"
+    end
+
     # A geometric frame, referenced to by name
     class Frame
         # The name of the frame
