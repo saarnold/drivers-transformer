@@ -3,10 +3,15 @@ require 'eigen'
 require 'set'
 require 'utilrb/logger'
 
+# Ruby-side library for Transformer functionality
+#
+# The Ruby-side library can be used to declare the transformation production
+# graph (i.e. who is producing which transformations), and compute
+# transformation chains between two points in this graph
 module Transformer
     extend Logger::Root("Transformer", Logger::WARN)
 
-    # Abstract representation of a geometric frame
+    # A geometric frame, referenced to by name
     class Frame
         # The name of the frame
         attr_accessor :name    
@@ -22,9 +27,13 @@ module Transformer
         end
     end
 
-    # Representation of a transformation between two frames
+    # Representation of a frame transformation
+    #
+    # The frames are represented by their name
     class Transform
+        # Name of the source frame
         attr_reader :from
+        # Name of the target frame
         attr_reader :to   
 
         def initialize(from, to)
@@ -37,7 +46,7 @@ module Transformer
         end
     end
 
-    # Represents a frame transformation that has a given value
+    # Represents a frame transformation that has static value
     class StaticTransform < Transform
         attr_accessor :translation
         attr_accessor :rotation
@@ -48,8 +57,7 @@ module Transformer
         end
     end
 
-    # Represents a frame transformation that is generated dynamically by an
-    # abstract producer
+    # Represents a frame transformation that is generated dynamically
     #
     # The producer object must respond to #inverse
     class DynamicTransform < Transform
@@ -61,12 +69,22 @@ module Transformer
         end
     end
 
+    # A transformation that is produced by a chain of transformations
+    #
+    # The constraint is that, when the links in +links+ are chained together,
+    # they form a chain from +self.from+ to +self.to+
     class TransformChain < Transform
-        #This must be an Array of Transform 
-        #links representing the TransformChain
+        # Array of Transform objects representing the elements of the chain
         attr_reader :links
+        # Array of the same size than +links+. If an element at index +idx+ is
+        # true, then the link at +links[idx]+ must be inversed before it gets
+        # concatenated
         attr_reader :inversions
 
+        # Initializes the object using a leaf TransformNode
+        #
+        # The object will be initialized by traversing the parents of
+        # +transformation_node+.
         def initialize(transformation_node)
             @links = Array.new
             @inversions = Array.new
@@ -97,12 +115,26 @@ module Transformer
         end
     end
 
+    # A node used during discovery to find transformation chains
+    #
+    # A TransformationNode is an element in a list, containing a back-pointer to
+    # its parent in the chain. It is only used during transformation chain
+    # discovery to represent the possible paths.
     class TransformNode
-        attr_reader :parent
+        # The frame of this node, as a frame name
         attr_reader :frame
+        # The parent TransformNode object
+        attr_reader :from
+        # The Transform object that links +from+ to +frame+. If +inverse+ is
+        # false, it is a transformation from +from.frame+ to +self.frame+. If
+        # +inverse+ is true, it is the opposite transformation.
         attr_reader :link_to_parent
+        # Flag representing if +link_to_parent+ should be concatenated in the
+        # chain as-is, or inverted first
         attr_reader :inverse
-
+        # The complete path, as a list of [from_frame, to_frame] pairs. Both
+        # +from_frame+ and +to_frame+ are frame names. It is used to detect
+        # cycles in the discovery process and avoid them
         attr_reader :traversed_links
 
         def initialize(frame, parent, link_to_parent, inverse)
