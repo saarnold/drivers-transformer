@@ -139,7 +139,7 @@ module Transformer
         # The frame of this node, as a frame name
         attr_reader :frame
         # The parent TransformNode object
-        attr_reader :from
+        attr_reader :parent
         # The Transform object that links +from+ to +frame+. If +inverse+ is
         # false, it is a transformation from +from.frame+ to +self.frame+. If
         # +inverse+ is true, it is the opposite transformation.
