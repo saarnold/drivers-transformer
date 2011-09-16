@@ -359,6 +359,17 @@ module Transformer
             self.frames.include?(frame.to_s)
         end
 
+        def parse_transform_hash(hash, expected_size)
+            if expected_size && hash.size != expected_size
+                raise ArgumentError, "expected #{expected_size} transformation(s), got #{hash}"
+            end
+
+            hash.to_a
+        end
+        def parse_single_transform(hash)
+            return parse_transform_hash(hash, 1).first
+        end
+
         # call-seq:
         #   dynamic_transform "from_frame", "to_frame", producer
         #
@@ -368,8 +379,9 @@ module Transformer
         #
         # For instance, producers in orocos.rb are strings that give the name of
         # the task context that will provide that transformation
-        def dynamic_transform(from, to, producer)
-            from, to = from.to_s, to.to_s
+        def dynamic_transform(producer, transform)
+            from, to = parse_single_transform(transform)
+            frames(from, to)
             if has_transformation?(from, to)
                 raise ArgumentError, "there is already a transformation registered between +from+ and +to+"
             end
@@ -386,8 +398,9 @@ module Transformer
         #   static_transform "from_frame", "to_frame", translation, rotation
         #
         # Declares a new static transformation
-        def static_transform(from, to, *transformation)
-            from, to = from.to_s, to.to_s
+        def static_transform(*transformation)
+            from, to = parse_single_transform(transformation.pop)
+            frames(from, to)
             if has_transformation?(from, to)
                 raise ArgumentError, "there is already a transformation registered between +from+ and +to+"
             end
@@ -396,11 +409,11 @@ module Transformer
                 raise ArgumentError, "no transformation given"
             elsif transformation.size <= 2
                 translation, rotation = transformation
-                if !rotation && translation.kind_of?(Eigen::Quaternion)
-                    translation, rotation = nil, translation
+                if translation.kind_of?(Eigen::Quaternion)
+                    translation, rotation = rotation, translation
                 end
                 translation ||= Eigen::Vector3.new(0, 0, 0)
-                rotation ||= Eigen::Quaternion.Identity
+                rotation    ||= Eigen::Quaternion.Identity
 
                 if !translation.kind_of?(Eigen::Vector3)
                     raise ArgumentError, "the provided translation is not an Eigen::Vector3"
