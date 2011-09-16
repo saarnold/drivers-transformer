@@ -199,9 +199,10 @@ module Transformer
 
         # Loads a configuration file. See the documentation of Transformer for
         # the syntax
-        def load_configuration(config_file)
-            eval_dsl_file(config_file, @conf, [], false) do |local_var|
-            end
+        #
+        # If multiple arguments are provided, they are joined with File.join
+        def load_configuration(*config_file)
+            eval_dsl_file(File.join(*config_file), @conf, [], false)
         end
 
         # Returns the set of transformations in +transforms+ where
