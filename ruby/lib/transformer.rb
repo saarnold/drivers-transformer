@@ -303,11 +303,11 @@ module Transformer
         def check_transformation(frames, transformation)
             errors = []
             if(!frames.include?(transformation.from))
-                errors << "transformation from #{transformation.from} to #{transformation.to} uses unknown frame #{transformation.from}"
+                errors << "transformation from #{transformation.from} to #{transformation.to} uses unknown frame #{transformation.from}, known frames: #{frames.to_a.sort.join(", ")}"
             end	
 
             if(!frames.include?(transformation.to))
-                errors << "transformation from #{transformation.from} to #{transformation.to} uses unknown frame #{transformation.to}"
+                errors << "transformation from #{transformation.from} to #{transformation.to} uses unknown frame #{transformation.to}, known frames: #{frames.to_a.sort.join(", ")}"
             end
             if !errors.empty?
                 raise InvalidConfiguration, "transformation configuration contains errors:\n  " + errors.join("\n  ")
@@ -427,9 +427,9 @@ module Transformer
 
             if !result
                 if !has_frame?(from)
-                    raise ArgumentError, "#{from} is not a registered transformation"
+                    raise ArgumentError, "#{from} is not a registered frame"
                 elsif !has_frame?(to)
-                    raise ArgumentError, "#{to} is not a registered transformation"
+                    raise ArgumentError, "#{to} is not a registered frame"
                 end
             end
             result
@@ -442,9 +442,9 @@ module Transformer
             result = transforms[[from, to]]
             if !result
                 if !has_frame?(from)
-                    raise ArgumentError, "#{from} is not a registered transformation"
+                    raise ArgumentError, "#{from} is not a registered frame"
                 elsif !has_frame?(to)
-                    raise ArgumentError, "#{to} is not a registered transformation"
+                    raise ArgumentError, "#{to} is not a registered frame"
                 else
                     raise ArgumentError, "there is no registered transformations between #{from} and #{to}"
                 end
