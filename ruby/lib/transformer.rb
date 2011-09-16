@@ -115,6 +115,14 @@ module Transformer
             super(cur_node.frame, to)
         end
 
+        # Returns the set of static transformations and producers needed to
+        # form this chain
+        def partition
+            static, dynamic = @links.partition do |link|
+                link.kind_of?(StaticTransform)
+            end
+        end
+
         def pretty_print(pp)
             pp.text "Transform Chain: #{from} to #{to} "
             pp.breakable
