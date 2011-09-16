@@ -118,13 +118,13 @@ module Transformer
         def pretty_print(pp)
             pp.text "Transform Chain: #{from} to #{to} "
             pp.breakable
-            pp.text "Links: #{pp.newline}"
+            pp.text "Links:"
             pp.nest(2) do
-                links.each_with_index do |tr, i|
-                    pp.breakable
-                    tr.text("(inv)") if inversions[i]
+                pp.breakable
+                pp.seplist(links.each_with_index) do |tr|
+                    tr, i = *tr
+                    pp.text("(inv)") if inversions[i]
                     tr.pretty_print(pp)
-                    
                 end
             end
         end
