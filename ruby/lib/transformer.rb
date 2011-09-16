@@ -218,10 +218,9 @@ module Transformer
             ret = Array.new
 
             transforms[node.frame].each do |i|
-                if !node.traversed_links.include?([i.from, i.to].to_set)
+                link_marker = [i.from, i.to].to_set
+                if !node.traversed_links.include?(link_marker)
                     ret << [i, false]
-                end
-                if !node.traversed_links.include?([i.to, i.from].to_set)
                     ret << [i, true]
                 end
             end
@@ -242,37 +241,37 @@ module Transformer
                 all_transforms[trsf.to]   << trsf
             end
 
-            possible_next_nodes = Array.new
+            possible_next_nodes, next_level = Array.new, Array.new
             possible_next_nodes.push(TransformNode.new(from, nil, nil, false))
 
             max_depth = [@max_seek_depth, conf.transforms.size].min
             max_depth.times do
-                next_level = Array.new
-
-                if possible_next_nodes.empty?
-                    raise ArgumentError, "no transformation from '#{from}' to '#{to}' available"
-                end
-
+                # Iterate over the possible next nodes, and add them to all
+                # existing chains
                 possible_next_nodes.each do |node|
                     links_for_node = matching_transforms(node, all_transforms)
                     links_for_node.each do |link, inverse|
-                        if inverse
-                            next_level.push(TransformNode.new(link.from, node, link, inverse))
-                        else
-                            next_level.push(TransformNode.new(link.to, node, link, inverse))
+                        target_frame =
+                            if inverse then link.from
+                            else link.to
+                            end
+
+                        child_node = TransformNode.new(target_frame, node, link, inverse)
+                        if target_frame == to
+                            return TransformChain.new(child_node)
                         end
+                        next_level << child_node
                     end
                 end
 
-                next_level.each do |candidate|
-                    if(candidate.frame == to)
-                        return TransformChain.new(candidate)
-                    end
+                if next_level.empty?
+                    raise ArgumentError, "no transformation from '#{from}' to '#{to}' available"
                 end
 
-                possible_next_nodes = next_level
+                possible_next_nodes, next_level = next_level, possible_next_nodes
+                next_level.clear
             end
-            raise ArgumentError, "max seek depth reached seeking Transform from '#{from}' to #{to}"
+            raise ArgumentError, "max seek depth reached seeking Transform from '#{from}' to '#{to}'"
         end
     end
 
