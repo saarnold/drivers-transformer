@@ -204,6 +204,15 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 	
 	interpolated.position = factor * start_t + (1.0-factor) * end_t; 
 
+	// perform linear interpolation of uncertainties
+	interpolated.cov_position = 
+	    factor * lastTransform.cov_position + 
+	    (1.0-factor) * next_sample.second.cov_position;
+
+	interpolated.cov_orientation = 
+	    factor * lastTransform.cov_orientation + 
+	    (1.0-factor) * next_sample.second.cov_orientation;
+
 	result = interpolated;
     } else {
 	result = lastTransform;
