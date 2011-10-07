@@ -202,7 +202,7 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 	Eigen::Vector3d start_t(lastTransform.position);
 	Eigen::Vector3d end_t(next_sample.second.position);
 	
-	interpolated.position = start_t + (end_t - start_t) * factor; 
+	interpolated.position = factor * start_t + (1.0-factor) * end_t; 
 
 	result = interpolated;
     } else {
