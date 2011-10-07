@@ -222,34 +222,6 @@ void TransformationTree::clear()
     availableElements.clear();
 }
 
-bool Transformation::get(const base::Time& atTime, Eigen::Affine3d& result, bool interpolate) const
-{
-    result = Eigen::Affine3d::Identity();
-
-    if(transformationChain.empty()) 
-    {
-	return false;
-    }
-    
-    for(std::vector<TransformationElement *>::const_iterator it = transformationChain.begin(); it != transformationChain.end(); it++)
-    {
-	TransformationType tr;
-	if(!(*it)->getTransformation(atTime, interpolate, tr))
-	{
-	    //no sample available, return
-	    return false;
-	}
-	
-	//TODO, this might be a costly operation
-	Eigen::Affine3d trans = tr;
-	
-	//apply transformation
-	result = result * trans;
-    }
-
-    return true;
-}
-
 
 bool Transformation::get(const base::Time &time, TransformationType& tr, bool doInterpolation) const
 {

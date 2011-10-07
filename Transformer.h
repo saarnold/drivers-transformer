@@ -70,7 +70,9 @@ class Transformation
 	 * */
 	bool get(const base::Time& atTime, transformer::TransformationType& result, bool interpolate = false) const;
 	bool getChain(const base::Time& atTime, std::vector<TransformationType>& result, bool interpolate = false) const;
-	bool get(const base::Time& atTime, Eigen::Affine3d& result, bool interpolate = false) const;
+
+	template <class T>
+	bool get(const base::Time& atTime, T& result, bool interpolate = false) const;
 	bool getChain(const base::Time& atTime, std::vector<Eigen::Affine3d>& result, bool interpolate = false) const;
 };
 
@@ -395,6 +397,34 @@ class Transformer
 	~Transformer();
 };
 
+template<class T>
+bool Transformation::get(const base::Time& atTime, T& result, bool interpolate) const
+{
+    result = T::Identity();
+
+    if(transformationChain.empty()) 
+    {
+	return false;
+    }
+    
+    for(std::vector<TransformationElement *>::const_iterator it = transformationChain.begin(); it != transformationChain.end(); it++)
+    {
+	TransformationType tr;
+	if(!(*it)->getTransformation(atTime, interpolate, tr))
+	{
+	    //no sample available, return
+	    return false;
+	}
+	
+	//TODO, this might be a costly operation
+	T trans( tr );
+	
+	//apply transformation
+	result = result * trans;
+    }
+
+    return true;
+}
 
 }
 #endif // TRANSFORMER_H
