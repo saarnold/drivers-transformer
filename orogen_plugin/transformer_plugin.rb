@@ -36,7 +36,7 @@ module TransformerPlugin
 		#push data in update hook
 		task.add_port_listener(m.name) do |sample_name|
 		    "
-	#{transformer_name}.pushData(#{m.idx_name}, #{sample_name}.time, #{sample_name});"
+	#{transformer_name}.pushData(#{m.idx_name}, #{time_access}, #{sample_name});"
 		end
 	    end	    
 	    
@@ -83,7 +83,7 @@ module TransformerPlugin
 		task.in_base_hook("configure", "
     {
     const double #{s.name}Period = _#{s.name}_period.value();
-    #{s.idx_name} = #{transformer_name}.registerDataStream< #{stream_data_type}>(
+    #{s.idx_name} = #{transformer_name}.registerDataStream< #{stream_data_type} >(
 		    base::Time::fromSeconds(#{s.name}Period), boost::bind( &#{task.class_name()}Base::#{s.callback_name}, this, _1, _2));
     }
 		")
