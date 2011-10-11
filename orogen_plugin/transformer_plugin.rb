@@ -35,6 +35,14 @@ module TransformerPlugin
 		
 		#push data in update hook
 		task.add_port_listener(m.name) do |sample_name|
+                    ### HACK TODO
+                    # This needs fixing by annotating opaques (i.e. telling
+                    # oroGen that some opaques 'behave as' pointers)
+                    time_access =
+                        if m.get_data_type(task) =~ /ReadOnlyPointer/ then "#{sample_name}->time"
+                        else "#{sample_name}.time"
+                        end
+
 		    "
 	#{transformer_name}.pushData(#{m.idx_name}, #{time_access}, #{sample_name});"
 		end
