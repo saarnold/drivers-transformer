@@ -320,16 +320,6 @@ class Transformer
 	    return aggregator.unregisterStream(idx);
 	};
 	
-	/**
-	 * Overloaded function, for Transformations, for convenience.
-	 * 
-	 * calls pushDynamicTransformation interally.
-	 * */
-	void pushData( int idx, base::Time ts, const TransformationType& data )
-	{
-	    pushDynamicTransformation(data);
-	};
-	
 	void requestTransformationAtTime(int idx, base::Time ts)
 	{
 	    aggregator.push(idx, ts, false);
