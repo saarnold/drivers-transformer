@@ -14,6 +14,10 @@ module TransformerPlugin
 	def generate_parse_time_code(config)
 	    task.project.using_library('transformer', :typekit => false)
 
+            #a transformer allways need to be configured
+            Orocos::Generation.info("Adding needs_configuration")
+            task.needs_configuration()
+
 	    task.property("transformer_max_latency",   'double', config.max_latency).
 		doc "Maximum time that should be waited for a delayed data sample to arrive"
 	    Orocos::Generation.info("Adding property transformer_max_latency")
