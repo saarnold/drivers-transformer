@@ -202,7 +202,16 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 	Eigen::Vector3d start_t(lastTransform.position);
 	Eigen::Vector3d end_t(next_sample.second.position);
 	
-	interpolated.position = start_t + (end_t - start_t) * factor; 
+	interpolated.position = factor * start_t + (1.0-factor) * end_t; 
+
+	// perform linear interpolation of uncertainties
+	interpolated.cov_position = 
+	    factor * lastTransform.cov_position + 
+	    (1.0-factor) * next_sample.second.cov_position;
+
+	interpolated.cov_orientation = 
+	    factor * lastTransform.cov_orientation + 
+	    (1.0-factor) * next_sample.second.cov_orientation;
 
 	result = interpolated;
     } else {
@@ -220,34 +229,6 @@ void TransformationTree::clear()
     }
     
     availableElements.clear();
-}
-
-bool Transformation::get(const base::Time& atTime, Eigen::Affine3d& result, bool interpolate) const
-{
-    result = Eigen::Affine3d::Identity();
-
-    if(transformationChain.empty()) 
-    {
-	return false;
-    }
-    
-    for(std::vector<TransformationElement *>::const_iterator it = transformationChain.begin(); it != transformationChain.end(); it++)
-    {
-	TransformationType tr;
-	if(!(*it)->getTransformation(atTime, interpolate, tr))
-	{
-	    //no sample available, return
-	    return false;
-	}
-	
-	//TODO, this might be a costly operation
-	Eigen::Affine3d trans = tr;
-	
-	//apply transformation
-	result = result * trans;
-    }
-
-    return true;
 }
 
 
