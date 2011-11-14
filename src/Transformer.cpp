@@ -73,6 +73,9 @@ std::vector< TransformationNode* >::const_iterator TransformationTree::checkForM
 
 bool TransformationTree::getTransformationChain(std::string from, std::string to, std::vector< TransformationElement* >& result)
 {
+    if (from == to)
+        return true;
+
     TransformationNode node(from, NULL, NULL);
     
     std::vector<TransformationNode *> curLevel;
@@ -398,8 +401,7 @@ void Transformer::clear()
     //clear all known transformation chains
     for(std::vector<Transformation *>::iterator it = transformations.begin(); it != transformations.end(); it++)
     {
-	std::vector<TransformationElement *> emptyChain;
-	(*it)->setTransformationChain(emptyChain);
+	(*it)->reset();
     }
 
     //clear index mapping
