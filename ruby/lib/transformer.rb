@@ -383,7 +383,7 @@ module Transformer
             from, to = parse_single_transform(transform)
             frames(from, to)
             if has_transformation?(from, to)
-                raise ArgumentError, "there is already a transformation registered between +from+ and +to+"
+                raise ArgumentError, "there is already a transformation registered between #{from} and #{to}"
             end
 
             checker.check_producer(producer)
@@ -402,7 +402,7 @@ module Transformer
             from, to = parse_single_transform(transformation.pop)
             frames(from, to)
             if has_transformation?(from, to)
-                raise ArgumentError, "there is already a transformation registered between +from+ and +to+"
+                raise ArgumentError, "there is already a transformation registered between #{from} and #{to}"
             end
 
             if transformation.empty?
