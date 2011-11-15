@@ -118,7 +118,7 @@ module Transformer
         # Returns the set of static transformations and producers needed to
         # form this chain
         def partition
-            static, dynamic = @links.partition do |link|
+            @links.partition do |link|
                 link.kind_of?(StaticTransform)
             end
         end
