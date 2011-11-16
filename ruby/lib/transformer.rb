@@ -237,22 +237,33 @@ module Transformer
         end
 
         # Returns the shortest transformation chains that link +from+ to +to+
-        def transformation_chain(from, to)
+        def transformation_chain(from, to, additional_producers = Hash.new)
             from = from.to_s
             to = to.to_s
             checker.check_frame(from, conf.frames)
             checker.check_frame(to, conf.frames)
 
+            known_transforms = Set.new
             all_transforms = Hash.new { |h, k| h[k] = Set.new }
-            conf.transforms.each_value do |trsf|
+            additional_producers.each do |(add_from, add_to), producer_name|
+                trsf = DynamicTransform.new(add_from, add_to, producer_name)
                 all_transforms[trsf.from] << trsf
                 all_transforms[trsf.to]   << trsf
+                known_transforms << [trsf.from, trsf.to] << [trsf.to, trsf.from]
+            end
+
+            conf.transforms.each_value do |trsf|
+                if !known_transforms.include?([trsf.from, trsf.to])
+                    all_transforms[trsf.from] << trsf
+                    all_transforms[trsf.to]   << trsf
+                    known_transforms << [trsf.from, trsf.to] << [trsf.to, trsf.from]
+                end
             end
 
             possible_next_nodes, next_level = Array.new, Array.new
             possible_next_nodes.push(TransformNode.new(from, nil, nil, false))
 
-            max_depth = [@max_seek_depth, conf.transforms.size].min
+            max_depth = [@max_seek_depth, known_transforms.size / 2].min
             max_depth.times do
                 # Iterate over the possible next nodes, and add them to all
                 # existing chains
