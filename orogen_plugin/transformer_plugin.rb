@@ -88,7 +88,7 @@ module TransformerPlugin
     {
     const double #{s.name}Period = _#{s.name}_period.value();
     #{s.idx_name} = #{transformer_name}.registerDataStream< #{stream_data_type}>(
-		    base::Time::fromSeconds(#{s.name}Period), boost::bind( &#{task.class_name()}Base::#{s.callback_name}, this, _1, _2));
+		    base::Time::fromSeconds(#{s.name}Period), boost::bind( &#{task.class_name()}Base::#{s.callback_name}, this, _1, _2), #{s.priority}, \"#{s.name}\");
     }
 		")
 
@@ -131,14 +131,16 @@ module TransformerPlugin
     
     class TransformerConfiguration
 	class StreamDescription
-	    def initialize(name, period)
+	    def initialize(name, period, priority = -1)
 		@name = name
 		@period = period
+		@priority = priority
 		@idx_name = name + "_idx_tr"
 		@callback_name = name + "TransformerCallback"
 	    end
 	    attr_reader :name
 	    attr_reader :period
+	    attr_reader :priority
 	    attr_reader :idx_name
 	    attr_reader :callback_name
 	    
@@ -172,6 +174,7 @@ module TransformerPlugin
 	def initialize()
 	    @streams = Array.new()
 	    @transformations = Array.new()
+	    @priority = 0
 	end
 	
 	def transformation(from, to)
@@ -179,7 +182,8 @@ module TransformerPlugin
 	end
 	
 	def align_port(name, period)
-	    streams << StreamDescription.new(name, period)
+	    streams << StreamDescription.new(name, period, @priority)
+	    @priority += 1
 	end
 
     end

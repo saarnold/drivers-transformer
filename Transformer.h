@@ -297,9 +297,9 @@ class Transformer
 	 * 
 	 * The callback will be called every time a new data sample is available.
 	 * */
-	template <class T> int registerDataStream(base::Time dataPeriod, boost::function<void (const base::Time &ts, const T &value)> callback)
+	template <class T> int registerDataStream(base::Time dataPeriod, boost::function<void (const base::Time &ts, const T &value)> callback, int priority = -1, const std::string &name = std::string())
 	{
-	    return aggregator.registerStream<T>(boost::bind( callback, _1, _2), 0, dataPeriod);
+	    return aggregator.registerStream<T>(boost::bind( callback, _1, _2), 0, dataPeriod, priority, name);
 	};
 
 	/**
