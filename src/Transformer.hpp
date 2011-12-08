@@ -18,7 +18,11 @@ class Transformation
 {
     friend class Transformer;
     private:
-	Transformation(const std::string &sourceFrame, const std::string &targetFrame) : sourceFrame(sourceFrame), targetFrame(targetFrame) {};
+	Transformation(const std::string &sourceFrame, const std::string &targetFrame)
+            : valid(false)
+            , sourceFrame(sourceFrame)
+            , targetFrame(targetFrame) {};
+        bool valid;
 	std::string sourceFrame;
 	std::string targetFrame;
 	std::string sourceFrameMapped;
@@ -28,11 +32,18 @@ class Transformation
 	void setFrameMapping(const std::string &frameName, const std::string &newName);
 	
 	/**
-	 * This function sets a new transformationChain
+	 * Sets the transformation chain for this transformation
+         *
+         * The transformation chain is a list of links (represented by
+         * TransformationElement objects) that should be composed to compute the
+         * required transformation
+         *
+         * Calling this method sets the transformation as valid.
 	 * */
 	void setTransformationChain(const std::vector<TransformationElement *> &chain)
 	{
 	    transformationChain = chain;
+            valid = true;
 	}
 
 	Transformation(const Transformation &other)
@@ -61,6 +72,15 @@ class Transformation
 	    
 	    return targetFrameMapped;
 	}	
+
+        /** Clears all stored information and marks the transformation as
+         * invalid
+         */
+        void reset()
+        {
+            valid = false;
+            transformationChain.clear();
+        }
 	
 	/**
 	 * This functions tries to return the transformation from sourceFrame to targetFrame at the given time.
@@ -391,11 +411,11 @@ template<class T>
 bool Transformation::get(const base::Time& atTime, T& result, bool interpolate) const
 {
     result = T::Identity();
+    if (!valid)
+        return false;
 
     if(transformationChain.empty()) 
-    {
-	return false;
-    }
+	return true;
     
     for(std::vector<TransformationElement *>::const_iterator it = transformationChain.begin(); it != transformationChain.end(); it++)
     {

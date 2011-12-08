@@ -1,9 +1,32 @@
 require 'utilrb/kernel/load_dsl_file'
 require 'eigen'
 require 'set'
+require 'utilrb/logger'
 
+# Ruby-side library for Transformer functionality
+#
+# The Ruby-side library can be used to declare the transformation production
+# graph (i.e. who is producing which transformations), and compute
+# transformation chains between two points in this graph
 module Transformer
-    # Abstract representation of a geometric frame
+    extend Logger::Root("Transformer", Logger::WARN)
+
+    # True if +port+ is a valid port to hold transformation information
+    def self.transform_port?(port)
+        transform_type?(port.type)
+    end
+
+    # True if +type+ is a type to represent transformations
+    #
+    # @arg [String,Typelib::Type] the typename or type object to test against
+    def self.transform_type?(type)
+        if type.respond_to?(:name)
+            type = type.name
+        end
+        return type == "/base/samples/RigidBodyState"
+    end
+
+    # A geometric frame, referenced to by name
     class Frame
         # The name of the frame
         attr_accessor :name    
@@ -19,9 +42,13 @@ module Transformer
         end
     end
 
-    # Representation of a transformation between two frames
+    # Representation of a frame transformation
+    #
+    # The frames are represented by their name
     class Transform
+        # Name of the source frame
         attr_reader :from
+        # Name of the target frame
         attr_reader :to   
 
         def initialize(from, to)
@@ -34,7 +61,7 @@ module Transformer
         end
     end
 
-    # Represents a frame transformation that has a given value
+    # Represents a frame transformation that has static value
     class StaticTransform < Transform
         attr_accessor :translation
         attr_accessor :rotation
@@ -45,8 +72,7 @@ module Transformer
         end
     end
 
-    # Represents a frame transformation that is generated dynamically by an
-    # abstract producer
+    # Represents a frame transformation that is generated dynamically
     #
     # The producer object must respond to #inverse
     class DynamicTransform < Transform
@@ -58,12 +84,22 @@ module Transformer
         end
     end
 
+    # A transformation that is produced by a chain of transformations
+    #
+    # The constraint is that, when the links in +links+ are chained together,
+    # they form a chain from +self.from+ to +self.to+
     class TransformChain < Transform
-        #This must be an Array of Transform 
-        #links representing the TransformChain
+        # Array of Transform objects representing the elements of the chain
         attr_reader :links
+        # Array of the same size than +links+. If an element at index +idx+ is
+        # true, then the link at +links[idx]+ must be inversed before it gets
+        # concatenated
         attr_reader :inversions
 
+        # Initializes the object using a leaf TransformNode
+        #
+        # The object will be initialized by traversing the parents of
+        # +transformation_node+.
         def initialize(transformation_node)
             @links = Array.new
             @inversions = Array.new
@@ -79,27 +115,49 @@ module Transformer
             super(cur_node.frame, to)
         end
 
+        # Returns the set of static transformations and producers needed to
+        # form this chain
+        def partition
+            @links.partition do |link|
+                link.kind_of?(StaticTransform)
+            end
+        end
+
         def pretty_print(pp)
             pp.text "Transform Chain: #{from} to #{to} "
             pp.breakable
-            pp.text "Links: #{pp.newline}"
+            pp.text "Links:"
             pp.nest(2) do
-                links.each_with_index do |tr, i|
-                    pp.breakable
-                    tr.text("(inv)") if inversions[i]
+                pp.breakable
+                pp.seplist(links.each_with_index) do |tr|
+                    tr, i = *tr
+                    pp.text("(inv)") if inversions[i]
                     tr.pretty_print(pp)
-                    
                 end
             end
         end
     end
 
+    # A node used during discovery to find transformation chains
+    #
+    # A TransformationNode is an element in a list, containing a back-pointer to
+    # its parent in the chain. It is only used during transformation chain
+    # discovery to represent the possible paths.
     class TransformNode
-        attr_reader :parent
+        # The frame of this node, as a frame name
         attr_reader :frame
+        # The parent TransformNode object
+        attr_reader :parent
+        # The Transform object that links +from+ to +frame+. If +inverse+ is
+        # false, it is a transformation from +from.frame+ to +self.frame+. If
+        # +inverse+ is true, it is the opposite transformation.
         attr_reader :link_to_parent
+        # Flag representing if +link_to_parent+ should be concatenated in the
+        # chain as-is, or inverted first
         attr_reader :inverse
-
+        # The complete path, as a list of [from_frame, to_frame] pairs. Both
+        # +from_frame+ and +to_frame+ are frame names. It is used to detect
+        # cycles in the discovery process and avoid them
         attr_reader :traversed_links
 
         def initialize(frame, parent, link_to_parent, inverse)
@@ -129,7 +187,7 @@ module Transformer
     # * a ConfigurationChecker object that can validate the various parts in the
     #   configuration
     #
-    class Transformer
+    class TransformationManager
         # The object that holds frame and transformation definitions. It is
         # usually a Configuration object
         attr_accessor :conf
@@ -149,9 +207,10 @@ module Transformer
 
         # Loads a configuration file. See the documentation of Transformer for
         # the syntax
-        def load_configuration(config_file)
-            eval_dsl_file(config_file, @conf, [], false) do |local_var|
-            end
+        #
+        # If multiple arguments are provided, they are joined with File.join
+        def load_configuration(*config_file)
+            eval_dsl_file(File.join(*config_file), @conf, [], false)
         end
 
         # Returns the set of transformations in +transforms+ where
@@ -167,10 +226,9 @@ module Transformer
             ret = Array.new
 
             transforms[node.frame].each do |i|
-                if !node.traversed_links.include?([i.from, i.to].to_set)
+                link_marker = [i.from, i.to].to_set
+                if !node.traversed_links.include?(link_marker)
                     ret << [i, false]
-                end
-                if !node.traversed_links.include?([i.to, i.from].to_set)
                     ret << [i, true]
                 end
             end
@@ -179,49 +237,60 @@ module Transformer
         end
 
         # Returns the shortest transformation chains that link +from+ to +to+
-        def transformation_chain(from, to)
+        def transformation_chain(from, to, additional_producers = Hash.new)
             from = from.to_s
             to = to.to_s
             checker.check_frame(from, conf.frames)
             checker.check_frame(to, conf.frames)
 
+            known_transforms = Set.new
             all_transforms = Hash.new { |h, k| h[k] = Set.new }
-            conf.transforms.each_value do |trsf|
+            additional_producers.each do |(add_from, add_to), producer_name|
+                trsf = DynamicTransform.new(add_from, add_to, producer_name)
                 all_transforms[trsf.from] << trsf
                 all_transforms[trsf.to]   << trsf
+                known_transforms << [trsf.from, trsf.to] << [trsf.to, trsf.from]
             end
 
-            possible_next_nodes = Array.new
+            conf.transforms.each_value do |trsf|
+                if !known_transforms.include?([trsf.from, trsf.to])
+                    all_transforms[trsf.from] << trsf
+                    all_transforms[trsf.to]   << trsf
+                    known_transforms << [trsf.from, trsf.to] << [trsf.to, trsf.from]
+                end
+            end
+
+            possible_next_nodes, next_level = Array.new, Array.new
             possible_next_nodes.push(TransformNode.new(from, nil, nil, false))
 
-            max_depth = [@max_seek_depth, conf.transforms.size].min
+            max_depth = [@max_seek_depth, known_transforms.size / 2].min
             max_depth.times do
-                next_level = Array.new
-
-                if possible_next_nodes.empty?
-                    raise ArgumentError, "no transformation from '#{from}' to '#{to}' available"
-                end
-
+                # Iterate over the possible next nodes, and add them to all
+                # existing chains
                 possible_next_nodes.each do |node|
                     links_for_node = matching_transforms(node, all_transforms)
                     links_for_node.each do |link, inverse|
-                        if inverse
-                            next_level.push(TransformNode.new(link.from, node, link, inverse))
-                        else
-                            next_level.push(TransformNode.new(link.to, node, link, inverse))
+                        target_frame =
+                            if inverse then link.from
+                            else link.to
+                            end
+
+                        child_node = TransformNode.new(target_frame, node, link, inverse)
+                        if target_frame == to
+                            return TransformChain.new(child_node)
                         end
+                        next_level << child_node
                     end
                 end
 
-                next_level.each do |candidate|
-                    if(candidate.frame == to)
-                        return TransformChain.new(candidate)
-                    end
+                if next_level.empty?
+                    raise ArgumentError, "no transformation from '#{from}' to '#{to}' available"
                 end
 
-                possible_next_nodes = next_level
+                possible_next_nodes, next_level = next_level, possible_next_nodes
+                next_level.clear
             end
-            raise ArgumentError, "max seek depth reached seeking Transform from '#{from}' to #{to}"
+            raise ArgumentError, "max seek depth reached seeking Transform from '#{from}' to '#{to}'"
         end
     end
 
@@ -245,11 +314,11 @@ module Transformer
         def check_transformation(frames, transformation)
             errors = []
             if(!frames.include?(transformation.from))
-                errors << "transformation from #{transformation.from} to #{transformation.to} uses unknown frame #{transformation.from}"
+                errors << "transformation from #{transformation.from} to #{transformation.to} uses unknown frame #{transformation.from}, known frames: #{frames.to_a.sort.join(", ")}"
             end	
 
             if(!frames.include?(transformation.to))
-                errors << "transformation from #{transformation.from} to #{transformation.to} uses unknown frame #{transformation.to}"
+                errors << "transformation from #{transformation.from} to #{transformation.to} uses unknown frame #{transformation.to}, known frames: #{frames.to_a.sort.join(", ")}"
             end
             if !errors.empty?
                 raise InvalidConfiguration, "transformation configuration contains errors:\n  " + errors.join("\n  ")
@@ -301,6 +370,17 @@ module Transformer
             self.frames.include?(frame.to_s)
         end
 
+        def parse_transform_hash(hash, expected_size)
+            if expected_size && hash.size != expected_size
+                raise ArgumentError, "expected #{expected_size} transformation(s), got #{hash}"
+            end
+
+            hash.to_a
+        end
+        def parse_single_transform(hash)
+            return parse_transform_hash(hash, 1).first
+        end
+
         # call-seq:
         #   dynamic_transform "from_frame", "to_frame", producer
         #
@@ -310,10 +390,11 @@ module Transformer
         #
         # For instance, producers in orocos.rb are strings that give the name of
         # the task context that will provide that transformation
-        def dynamic_transform(from, to, producer)
-            from, to = from.to_s, to.to_s
+        def dynamic_transform(producer, transform)
+            from, to = parse_single_transform(transform)
+            frames(from, to)
             if has_transformation?(from, to)
-                raise ArgumentError, "there is already a transformation registered between +from+ and +to+"
+                raise ArgumentError, "there is already a transformation registered between #{from} and #{to}"
             end
 
             checker.check_producer(producer)
@@ -328,21 +409,22 @@ module Transformer
         #   static_transform "from_frame", "to_frame", translation, rotation
         #
         # Declares a new static transformation
-        def static_transform(from, to, *transformation)
-            from, to = from.to_s, to.to_s
+        def static_transform(*transformation)
+            from, to = parse_single_transform(transformation.pop)
+            frames(from, to)
             if has_transformation?(from, to)
-                raise ArgumentError, "there is already a transformation registered between +from+ and +to+"
+                raise ArgumentError, "there is already a transformation registered between #{from} and #{to}"
             end
 
             if transformation.empty?
                 raise ArgumentError, "no transformation given"
             elsif transformation.size <= 2
                 translation, rotation = transformation
-                if !rotation && translation.kind_of?(Eigen::Quaternion)
-                    translation, rotation = nil, translation
+                if translation.kind_of?(Eigen::Quaternion)
+                    translation, rotation = rotation, translation
                 end
                 translation ||= Eigen::Vector3.new(0, 0, 0)
-                rotation ||= Eigen::Quaternion.Identity
+                rotation    ||= Eigen::Quaternion.Identity
 
                 if !translation.kind_of?(Eigen::Vector3)
                     raise ArgumentError, "the provided translation is not an Eigen::Vector3"
@@ -369,9 +451,9 @@ module Transformer
 
             if !result
                 if !has_frame?(from)
-                    raise ArgumentError, "#{from} is not a registered transformation"
+                    raise ArgumentError, "#{from} is not a registered frame"
                 elsif !has_frame?(to)
-                    raise ArgumentError, "#{to} is not a registered transformation"
+                    raise ArgumentError, "#{to} is not a registered frame"
                 end
             end
             result
@@ -384,9 +466,9 @@ module Transformer
             result = transforms[[from, to]]
             if !result
                 if !has_frame?(from)
-                    raise ArgumentError, "#{from} is not a registered transformation"
+                    raise ArgumentError, "#{from} is not a registered frame"
                 elsif !has_frame?(to)
-                    raise ArgumentError, "#{to} is not a registered transformation"
+                    raise ArgumentError, "#{to} is not a registered frame"
                 else
                     raise ArgumentError, "there is no registered transformations between #{from} and #{to}"
                 end
