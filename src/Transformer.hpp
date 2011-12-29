@@ -339,6 +339,30 @@ class Transformer
 	{
 	    return aggregator.unregisterStream(idx);
 	};
+
+	/** 
+	 * @copydoc aggregator::StreamAligner::disableStream
+	 */
+	void disableStream( int idx )
+	{
+	    return aggregator.disableStream( idx );
+	}
+
+	/** 
+	 * @copydoc aggregator::StreamAligner::enableStream
+	 */
+	void enableStream( int idx )
+	{
+	    return aggregator.enableStream( idx );
+	}
+
+	/** 
+	 * @copydoc aggregator::StreamAligner::isStreamActive
+	 */
+	bool isStreamActive( int idx ) const 
+	{
+	    return aggregator.isStreamActive( idx );
+	}
 	
 	void requestTransformationAtTime(int idx, base::Time ts)
 	{
