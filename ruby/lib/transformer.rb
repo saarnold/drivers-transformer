@@ -393,9 +393,6 @@ module Transformer
         def dynamic_transform(producer, transform)
             from, to = parse_single_transform(transform)
             frames(from, to)
-            if has_transformation?(from, to)
-                raise ArgumentError, "there is already a transformation registered between #{from} and #{to}"
-            end
 
             checker.check_producer(producer)
             tr = DynamicTransform.new(from, to, producer)
@@ -412,9 +409,6 @@ module Transformer
         def static_transform(*transformation)
             from, to = parse_single_transform(transformation.pop)
             frames(from, to)
-            if has_transformation?(from, to)
-                raise ArgumentError, "there is already a transformation registered between #{from} and #{to}"
-            end
 
             if transformation.empty?
                 raise ArgumentError, "no transformation given"
