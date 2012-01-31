@@ -301,6 +301,13 @@ class Transformer
 	 * */
 	Transformation &registerTransformation(std::string sourceFrame, std::string targetFrame);
 	
+        /**
+         * Unregisteres a transformation from the transfromation stack.
+         * 
+         * This removes and deletes the given transformation
+         * */
+        void unregisterTransformation(Transformation *transformation);
+        
 	/**
 	 * Registers a callback that will be called every time a new transformation is available 
 	 * for the given Transformation handle.

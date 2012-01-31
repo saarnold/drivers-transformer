@@ -317,6 +317,16 @@ Transformation& Transformer::registerTransformation(std::string sourceFrame, std
     return *ret;
 }
 
+void Transformer::unregisterTransformation(Transformation* transformation)
+{
+    std::vector<Transformation *>::iterator it = std::find(transformations.begin(), transformations.end(), transformation);
+    if(it == transformations.end())
+        throw std::runtime_error("Tried to unregister non existing transformation");
+
+    transformations.erase(it);
+    delete transformation;
+}
+
 void Transformer::recomputeAvailableTransformations()
 {
     //seek through all available data streams and update transformation chains
