@@ -261,7 +261,7 @@ class TransformationTree
  * */
 class Transformer
 {
-    private:
+    protected:
 	aggregator::StreamAligner aggregator;
 	std::map<std::pair<std::string, std::string>, int> transformToStreamIndex;
 	std::vector<Transformation *> transformations;
@@ -281,7 +281,7 @@ class Transformer
 	 * 
 	 * Callbacks and setups for the data streams are NOT deleted by this method.
 	 * */
-	void clear();
+	virtual void clear();
 	
 	/**
 	 * This function may be used to manually set a transformation chain.
@@ -412,7 +412,7 @@ class Transformer
 	 * transformations and register streams for 'new'
 	 * transformations.  
 	 * */
-	void pushDynamicTransformation(const TransformationType &tr);
+	virtual void pushDynamicTransformation(const TransformationType &tr);
 	
 	/**
 	 * Function for adding static Transformations.
