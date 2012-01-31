@@ -314,6 +314,14 @@ Transformation& Transformer::registerTransformation(std::string sourceFrame, std
     Transformation *ret = new Transformation(sourceFrame, targetFrame);
     transformations.push_back(ret);
     
+    std::vector< TransformationElement* > trChain;
+    
+    //check if a transformation chain for this transformation exists
+    if(transformationTree.getTransformationChain(ret->getSourceFrame(), ret->getTargetFrame(), trChain))
+    {
+	ret->setTransformationChain(trChain);
+    }
+    
     return *ret;
 }
 
