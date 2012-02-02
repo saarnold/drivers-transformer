@@ -478,7 +478,7 @@ module Transformer
 
         def each_dynamic_transform
             transforms.each_value do |val|
-                yield(val) if val.kind_of?(StaticTransform)
+                yield(val) if val.kind_of?(DynamicTransform)
             end
         end
 
