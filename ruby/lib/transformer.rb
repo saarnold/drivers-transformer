@@ -57,7 +57,7 @@ module Transformer
         end
 
         def pretty_print(pp)
-            pp.text " #{from} to #{to} "
+            pp.text "#{from}2#{to}"
         end
     end
 
@@ -70,6 +70,11 @@ module Transformer
             super(from, to)
             @translation, @rotation = translation, rotation
         end
+
+        def pretty_print(pp)
+            super
+            pp.text ": static"
+        end
     end
 
     # Represents a frame transformation that is generated dynamically
@@ -81,6 +86,11 @@ module Transformer
         def initialize(from, to, producer)
             super(from, to)
             @producer = producer
+        end
+        
+        def pretty_print(pp)
+            super
+            pp.text ": produced by #{producer}"
         end
     end
 
