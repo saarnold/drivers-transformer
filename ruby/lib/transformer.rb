@@ -375,6 +375,17 @@ module Transformer
             @frames |= frames.to_set
         end
 
+        # Load a transformer configuration file
+        def load(*conf_file)
+            eval_dsl_file(File.join(*conf_file), self, [], false)
+        end
+
+        # Used in the transformer configuration files to load other files. This
+        # is only an alias to #load
+        def load_transformer_conf(*conf_file)
+            load(*conf_file)
+        end
+
         # True if +frame+ is a defined frame
         def has_frame?(frame)
             self.frames.include?(frame.to_s)
