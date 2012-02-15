@@ -1,5 +1,5 @@
 #include "NonAligningTransformer.hpp"
-
+#include <base/logging.h>
 
 transformer::NonAlignedDynamicTransformationElement::NonAlignedDynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame): TransformationElement(sourceFrame, targetFrame)
 {
@@ -56,7 +56,7 @@ void transformer::NonAligningTransformer::pushDynamicTransformation(const transf
         
         transformToElementMap[std::make_pair(tr.sourceFrame, tr.targetFrame)] = dynamicElement;
         
-        std::cout << "Registering new stream for transformation from " << tr.sourceFrame << " to " << tr.targetFrame << std::endl;
+        LOG_DEBUG_S << "Registering new stream for transformation from " << tr.sourceFrame << " to " << tr.targetFrame;
         
         //add new dynamic element to transformation tree
         transformationTree.addTransformation(dynamicElement);

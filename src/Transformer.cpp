@@ -2,6 +2,7 @@
 #include <Eigen/LU>
 #include <Eigen/SVD>
 #include <assert.h>
+#include <base/logging.h>
 
 namespace transformer {
     
@@ -93,7 +94,8 @@ bool TransformationTree::getTransformationChain(std::string from, std::string to
 	    std::vector< TransformationNode* >::const_iterator candidate = checkForMatchingChildFrame(to, **it);
 	    if(candidate != (*it)->childs.end())
 	    {
-		std::cout << "Found Transformation chain from " << from << " to " << to << std::endl << "Chain is (reverse) : " ;
+		LOG_DEBUG_S << "Found Transformation chain from " << from << " to " << to;
+                LOG_DEBUG_S << "Chain is (reverse) : ";
 		
 		TransformationNode *curNode = *candidate;
 		result.reserve(i + 1);
@@ -102,11 +104,11 @@ bool TransformationTree::getTransformationChain(std::string from, std::string to
 		while(curNode->parent)
 		{
 		    result.push_back(curNode->parentToCurNode);
-		    std::cout << " " << curNode->frameName << " " << curNode->parentToCurNode->getTargetFrame() << "<->" << curNode->parentToCurNode->getSourceFrame();
+		    LOG_DEBUG_S << "   " << curNode->frameName << " " << curNode->parentToCurNode->getTargetFrame() << "<->" << curNode->parentToCurNode->getSourceFrame();
 		    
 		    curNode = curNode->parent;
 		}
-		std::cout << " " << curNode->frameName << std::endl;
+		LOG_DEBUG_S << "   " << curNode->frameName << std::endl;
 		
 		return true;
 	    }
@@ -118,7 +120,7 @@ bool TransformationTree::getTransformationChain(std::string from, std::string to
 	curLevel = nextLevel;
     }
     
-    std::cout << "could not find result for " << from << " " << to << std::endl;
+    LOG_DEBUG_S << "could not find result for " << from << " " << to;
 
     return false;
 }
@@ -369,7 +371,7 @@ void Transformer::pushDynamicTransformation(const transformer::TransformationTyp
 	
 	transformToStreamIndex[std::make_pair(tr.sourceFrame, tr.targetFrame)] = streamIdx;
 	
-	std::cout << "Registering new stream for transformation from " << tr.sourceFrame << " to " << tr.targetFrame << " index is " << streamIdx << std::endl;
+	LOG_DEBUG_S << "Registering new stream for transformation from " << tr.sourceFrame << " to " << tr.targetFrame << " index is " << streamIdx;
 	
 	//add new dynamic element to transformation tree
 	transformationTree.addTransformation(dynamicElement);
