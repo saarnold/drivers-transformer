@@ -74,7 +74,7 @@ class Transformation
 	/**
 	 * returns the souce frame
 	 * */
-	const std::string &getSourceFrame()
+	const std::string &getSourceFrame() const
 	{
 	    if(sourceFrameMapped.empty())
 		return sourceFrame;
@@ -85,7 +85,7 @@ class Transformation
 	/**
 	 * returns the target frame
 	 * */
-	const std::string &getTargetFrame()
+	const std::string &getTargetFrame() const
 	{
 	    if(targetFrameMapped.empty())
 		return targetFrame;
