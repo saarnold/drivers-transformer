@@ -6,6 +6,29 @@
 
 namespace transformer {
     
+TransformationStatus Transformation::getStatus() const
+{
+    TransformationStatus status;
+    updateStatus(status);
+    return status;
+}
+
+void Transformation::updateStatus(TransformationStatus& status) const
+{
+    if (status.source_local != sourceFrame)
+        status.source_local = sourceFrame;
+    if (status.target_local != targetFrame)
+        status.target_local = targetFrame;
+    if (status.source_global != getSourceFrame())
+        status.source_global = getSourceFrame();
+    if (status.target_global != getTargetFrame())
+        status.target_global = getTargetFrame();
+    status.last_generated_value = lastGeneratedValue;
+    status.chain_length = transformationChain.size();
+    status.failed_no_sample = failedNoSample;
+    status.failed_no_chain = failedNoChain;
+    status.failed_interpolation_impossible = failedInterpolationImpossible;
+}
 
 class TransformationNode {
     public:

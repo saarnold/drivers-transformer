@@ -8,6 +8,7 @@
 #include <map>
 #include <boost/bind.hpp>
 #include <base/samples/rigid_body_state.h>
+#include <transformer/TransformationStatus.hpp>
 
 namespace transformer {
  
@@ -21,13 +22,22 @@ class Transformation
 	Transformation(const std::string &sourceFrame, const std::string &targetFrame)
             : valid(false)
             , sourceFrame(sourceFrame)
-            , targetFrame(targetFrame) {};
+            , targetFrame(targetFrame)
+            , failedNoChain(0)
+            , failedNoSample(0)
+            , failedInterpolationImpossible(0) {};
         bool valid;
+
 	std::string sourceFrame;
 	std::string targetFrame;
 	std::string sourceFrameMapped;
 	std::string targetFrameMapped;
 	std::vector<TransformationElement *> transformationChain;
+
+        mutable base::Time lastGeneratedValue;
+        mutable uint64_t failedNoChain;
+        mutable uint64_t failedNoSample;
+        mutable uint64_t failedInterpolationImpossible;
 
 	void setFrameMapping(const std::string &frameName, const std::string &newName);
 	
@@ -51,6 +61,16 @@ class Transformation
 	}
 	
     public:
+        /** Updates the data contained in the provided status structure with the
+         * transformation's internal information
+         */
+        TransformationStatus getStatus() const;
+
+        /** Updates the data contained in the provided status structure with the
+         * transformation's internal information
+         */
+        void updateStatus(TransformationStatus& status) const;
+
 	/**
 	 * returns the souce frame
 	 * */
@@ -80,6 +100,10 @@ class Transformation
         {
             valid = false;
             transformationChain.clear();
+            lastGeneratedValue = base::Time();
+            failedNoChain = 0;
+            failedNoSample = 0;
+            failedInterpolationImpossible = 0;
         }
 	
 	/**
@@ -443,16 +467,27 @@ bool Transformation::get(const base::Time& atTime, T& result, bool interpolate) 
 {
     result = T::Identity();
     if (!valid)
+    {
+        failedNoChain++;
         return false;
+    }
 
     if(transformationChain.empty()) 
+    {
+        failedNoChain++;
 	return true;
+    }
     
     for(std::vector<TransformationElement *>::const_iterator it = transformationChain.begin(); it != transformationChain.end(); it++)
     {
 	TransformationType tr;
 	if(!(*it)->getTransformation(atTime, interpolate, tr))
 	{
+            if (interpolate)
+                failedInterpolationImpossible++;
+            else
+                failedNoSample++;
+
 	    //no sample available, return
 	    return false;
 	}
@@ -463,7 +498,7 @@ bool Transformation::get(const base::Time& atTime, T& result, bool interpolate) 
 	//apply transformation
 	result = result * trans;
     }
-
+    lastGeneratedValue = atTime;
     return true;
 }
 
