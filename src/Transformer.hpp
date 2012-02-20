@@ -23,6 +23,7 @@ class Transformation
             : valid(false)
             , sourceFrame(sourceFrame)
             , targetFrame(targetFrame)
+            , generatedTransformations(0)
             , failedNoChain(0)
             , failedNoSample(0)
             , failedInterpolationImpossible(0) {};
@@ -35,6 +36,7 @@ class Transformation
 	std::vector<TransformationElement *> transformationChain;
 
         mutable base::Time lastGeneratedValue;
+        mutable uint64_t generatedTransformations;
         mutable uint64_t failedNoChain;
         mutable uint64_t failedNoSample;
         mutable uint64_t failedInterpolationImpossible;
@@ -101,6 +103,7 @@ class Transformation
             valid = false;
             transformationChain.clear();
             lastGeneratedValue = base::Time();
+            generatedTransformations = 0;
             failedNoChain = 0;
             failedNoSample = 0;
             failedInterpolationImpossible = 0;
@@ -499,6 +502,7 @@ bool Transformation::get(const base::Time& atTime, T& result, bool interpolate) 
 	result = result * trans;
     }
     lastGeneratedValue = atTime;
+    generatedTransformations++;
     return true;
 }
 

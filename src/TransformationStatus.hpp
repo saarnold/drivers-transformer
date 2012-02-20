@@ -32,6 +32,10 @@ namespace transformer
          * transformation. 0 if no chain could be found so far.
          */
         int chain_length;
+        /** The number of transformations that have successfully been generated
+         * so far
+         */
+        uint64_t generated_transformations;
         /** The number of time a transformation has been requested but could not
          * be generated because a chain was not yet found
          */
@@ -49,6 +53,7 @@ namespace transformer
 
         TransformationStatus()
             : chain_length(0)
+            , generated_transformations(0)
             , failed_no_chain(0)
             , failed_no_sample(0)
             , failed_interpolation_impossible(0) {}

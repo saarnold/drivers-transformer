@@ -25,6 +25,7 @@ void Transformation::updateStatus(TransformationStatus& status) const
         status.target_global = getTargetFrame();
     status.last_generated_value = lastGeneratedValue;
     status.chain_length = transformationChain.size();
+    status.generated_transformations = generatedTransformations;
     status.failed_no_sample = failedNoSample;
     status.failed_no_chain = failedNoChain;
     status.failed_interpolation_impossible = failedInterpolationImpossible;
