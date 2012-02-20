@@ -143,7 +143,7 @@ class TransformationElement {
 	/**
 	 * returns the name of the source frame
 	 * */
-	const std::string &getSourceFrame()
+	const std::string &getSourceFrame() const
 	{
 	    return sourceFrame;
 	}
@@ -151,7 +151,7 @@ class TransformationElement {
 	/**
 	 * returns the name of the target frame
 	 * */
-	const std::string &getTargetFrame()
+	const std::string &getTargetFrame() const
 	{
 	    return targetFrame;
 	}
@@ -213,6 +213,9 @@ class InverseTransformationElement : public TransformationElement {
     public:
 	InverseTransformationElement(TransformationElement *source): TransformationElement(source->getTargetFrame(), source->getSourceFrame()), nonInverseElement(source) {};
 	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& tr);
+
+        TransformationElement* getElement();
+        TransformationElement const* getElement() const;
     private:
 	TransformationElement *nonInverseElement;
 };
@@ -228,6 +231,11 @@ class TransformationTree
     public:
 	///default constructor
 	TransformationTree() : maxSeekDepth(20) {};
+
+        /** Returns the number of registered elements in the tree, as a (static
+         * elements, dynamic elements) pair
+         */
+        std::pair<int, int> getElementsCount() const;
 	
 	/**
 	 * Adds a TransformationElement to the set of available elements.
@@ -258,6 +266,10 @@ class TransformationTree
 	 * Deletes all available TransformationElements
 	 * */
 	void clear();
+
+        /** Dumps information about this tree on LOG_DEBUG_S
+         */
+        void dumpTree() const;
 	
     private:
 	///maximum seek depth while trying to find a transformationChain

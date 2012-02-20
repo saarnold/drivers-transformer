@@ -51,11 +51,60 @@ class TransformationNode {
 
 TransformationTree::~TransformationTree()
 {
-    for(std::vector<TransformationElement *>::iterator it = availableElements.begin(); it != availableElements.end(); it++)
+    clear();
+}
+
+std::pair<int, int> TransformationTree::getElementsCount() const
+{
+    int static_count = 0, dynamic_count = 0;
+    for(std::vector< TransformationElement* >::const_iterator it = availableElements.begin(); it != availableElements.end(); it++)
     {
-	delete *it;
+        TransformationElement const* element = *it;
+        InverseTransformationElement const* inv_element = dynamic_cast<InverseTransformationElement const*>(*it);
+        if (inv_element)
+            element = inv_element->getElement();
+
+        if (dynamic_cast<DynamicTransformationElement const*>(element))
+            dynamic_count++;
+        else
+            static_count++;
     }
-    availableElements.clear();
+    return std::make_pair(static_count, dynamic_count);
+}
+
+void TransformationTree::dumpTree() const
+{
+    for(std::vector< TransformationElement* >::const_iterator it = availableElements.begin(); it != availableElements.end(); it++)
+    {
+        TransformationElement const* element = *it;
+        bool is_inv = false, is_dyn = false;
+
+        InverseTransformationElement const* inv_element = dynamic_cast<InverseTransformationElement const*>(*it);
+        if (inv_element)
+        {
+            is_inv = true;
+            element = inv_element->getElement();
+        }
+
+        if (dynamic_cast<DynamicTransformationElement const*>(element))
+            is_dyn = true;
+
+
+        if (is_inv)
+        {
+            if (is_dyn)
+                LOG_DEBUG_S << "(inv,dyn) " << inv_element->getSourceFrame() << " > " << inv_element->getTargetFrame() << std::endl;
+            else
+                LOG_DEBUG_S << "(inv,static) " << inv_element->getSourceFrame() << " > " << inv_element->getTargetFrame() << std::endl;
+        }
+        else
+        {
+            if (is_dyn)
+                LOG_DEBUG_S << "(dyn) " << element->getSourceFrame() << " > " << element->getTargetFrame() << std::endl;
+            else
+                LOG_DEBUG_S << "(static) " << element->getSourceFrame() << " > " << element->getTargetFrame() << std::endl;
+        }
+    }
 }
 
 void TransformationTree::addTransformation(TransformationElement* element)
@@ -147,6 +196,16 @@ bool TransformationTree::getTransformationChain(std::string from, std::string to
     LOG_DEBUG_S << "could not find result for " << from << " " << to;
 
     return false;
+}
+
+TransformationElement const* InverseTransformationElement::getElement() const
+{
+    return nonInverseElement;
+}
+
+TransformationElement* InverseTransformationElement::getElement()
+{
+    return nonInverseElement;
 }
 
 bool InverseTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, transformer::TransformationType& tr)
