@@ -249,15 +249,6 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
     
     if(doInterpolation)
     {
-	std::pair<base::Time, TransformationType> next_sample;
-	
-	if(!aggregator.getNextSample(streamIdx, next_sample))
-	{
-	    //std::cout << "Transformer: could not get next sample" << std::endl;
-	    //not enought samples for itnerpolation available
-	    return false;
-	}
-	
 	double timeForward = (atTime - lastTransformTime).toSeconds();
 	
 	if(timeForward < 0) 
@@ -271,6 +262,15 @@ bool DynamicTransformationElement::getTransformation(const base::Time& atTime, b
 	    result = lastTransform;
 
 	    return true;
+	}
+
+	std::pair<base::Time, TransformationType> next_sample;
+	
+	if(!aggregator.getNextSample(streamIdx, next_sample))
+	{
+	    //std::cout << "Transformer: could not get next sample" << std::endl;
+	    //not enought samples for itnerpolation available
+	    return false;
 	}
 	
 	TransformationType interpolated;
