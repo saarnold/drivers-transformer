@@ -312,7 +312,7 @@ module Transformer
         attr_accessor :producer_check
 
         def initialize(producer_check = nil)
-            @producer_check = producer_check || lambda {}
+            @producer_check = producer_check || lambda { |_| }
         end
 
         def check_transformation_frames(frames, transforms)
