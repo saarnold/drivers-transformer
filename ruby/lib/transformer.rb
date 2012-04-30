@@ -176,12 +176,17 @@ module Transformer
             @link_to_parent = link_to_parent
             @inverse = inverse
 
-            @traversed_links =
-                if parent
-                    @traversed_links = parent.traversed_links.dup
-                    @traversed_links << [frame, parent.frame].to_set
-                else []
-                end
+	    if parent
+		@traversed_links = parent.traversed_links.dup
+		if !frame || frame.empty? || !parent.frame || parent.frame.empty?
+		    raise ArgumentError, "transformation without a source or target frame"
+		elsif frame == parent.frame
+		    raise ArgumentError, "trying to create a link from a frame to itself"
+		end
+		@traversed_links << [frame, parent.frame].to_set
+	    else
+		@traversed_links = []
+	    end
         end
     end
 
@@ -256,6 +261,9 @@ module Transformer
             known_transforms = Set.new
             all_transforms = Hash.new { |h, k| h[k] = Set.new }
             additional_producers.each do |(add_from, add_to), producer_name|
+		if !add_from || !add_to || add_from == add_to
+		    raise ArgumentError, "provided additional producer for a transform from #{add_from} onto itself"
+		end
                 trsf = DynamicTransform.new(add_from, add_to, producer_name)
                 all_transforms[trsf.from] << trsf
                 all_transforms[trsf.to]   << trsf
@@ -417,9 +425,16 @@ module Transformer
 
             checker.check_producer(producer)
             tr = DynamicTransform.new(from, to, producer)
-            checker.check_transformation(frames, tr)
-            transforms[[from, to]] = tr
+	    add_transform(tr)
         end
+    
+	def add_transform(tr)
+            checker.check_transformation(frames, tr)
+	    if tr.from == tr.to
+		raise ArgumentError, "trying to register a transformation from #{tr.from} onto itself"
+	    end
+            transforms[[tr.from, tr.to]] = tr
+	end
 
         # call-seq:
         #   static_transform "from_frame", "to_frame", translation
@@ -452,8 +467,7 @@ module Transformer
             end
 
             tr = StaticTransform.new(from, to, translation, rotation)
-            checker.check_transformation(frames, tr)
-            transforms[[from, to]] = tr
+	    add_transform(tr)
         end
 
         # Checks if a transformation between the provided frames exist.
