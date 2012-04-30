@@ -240,11 +240,10 @@ module Transformer
         def matching_transforms(node, transforms)
             ret = Array.new
 
-            transforms[node.frame].each do |i|
-                link_marker = [i.from, i.to].to_set
+            transforms[node.frame].each do |link, inverse|
+                link_marker = [link.from, link.to].to_set
                 if !node.traversed_links.include?(link_marker)
-                    ret << [i, false]
-                    ret << [i, true]
+                    ret << [link, inverse]
                 end
             end
 
@@ -265,15 +264,15 @@ module Transformer
 		    raise ArgumentError, "provided additional producer for a transform from #{add_from} onto itself"
 		end
                 trsf = DynamicTransform.new(add_from, add_to, producer_name)
-                all_transforms[trsf.from] << trsf
-                all_transforms[trsf.to]   << trsf
+                all_transforms[trsf.from] << [trsf, false]
+                all_transforms[trsf.to]   << [trsf, true]
                 known_transforms << [trsf.from, trsf.to] << [trsf.to, trsf.from]
             end
 
             conf.transforms.each_value do |trsf|
                 if !known_transforms.include?([trsf.from, trsf.to])
-                    all_transforms[trsf.from] << trsf
-                    all_transforms[trsf.to]   << trsf
+                    all_transforms[trsf.from] << [trsf, false]
+                    all_transforms[trsf.to]   << [trsf, true]
                     known_transforms << [trsf.from, trsf.to] << [trsf.to, trsf.from]
                 end
             end
