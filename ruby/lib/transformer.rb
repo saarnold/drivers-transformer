@@ -189,6 +189,17 @@ module Transformer
 	    end
         end
     end
+    
+    # Exception raised when a transformation requested in #transformation_chain
+    # cannot be found
+    class TransformationNotFound < RuntimeError
+	attr_reader :from
+	attr_reader :to
+
+	def initialize(from, to)
+	    @from, @to = from, to
+	end
+    end
 
     # Transformer algorithm
     #
@@ -301,7 +312,7 @@ module Transformer
                 end
 
                 if next_level.empty?
-                    raise ArgumentError, "no transformation from '#{from}' to '#{to}' available"
+                    raise TransformationNotFound.new(from, to), "no transformation from '#{from}' to '#{to}' available"
                 end
 
                 possible_next_nodes, next_level = next_level, possible_next_nodes
