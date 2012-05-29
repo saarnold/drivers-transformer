@@ -139,8 +139,7 @@ module Transformer
             pp.text "Links:"
             pp.nest(2) do
                 pp.breakable
-                pp.seplist(links.each_with_index) do |tr|
-                    tr, i = *tr
+                pp.seplist(links.each_with_index) do |tr, i|
                     pp.text("(inv)") if inversions[i]
                     tr.pretty_print(pp)
                 end
