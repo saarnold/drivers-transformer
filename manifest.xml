@@ -13,5 +13,6 @@
     <license>LGPL v2 or later</license>
 
     <depend package="drivers/aggregator" />
+    <tags>stable</tags>
 </package>
 
