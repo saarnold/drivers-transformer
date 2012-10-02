@@ -5,3 +5,4 @@ include($ENV{ROCK_CMAKE_MACROS}/Rock.cmake)
 rock_init(transformer 0.1)
 rock_standard_layout()
 
+include(RockRuby)
