@@ -161,13 +161,14 @@ BOOST_AUTO_TEST_CASE( automatic_chain_generation_simple_inverse_only_transform )
     robot2Laser.position = Eigen::Vector3d(10,0,0);
 
     Transformation &t = tf.registerTransformation("laser", "robot");
-    int tr_idx = tf.registerTransfromCallback(t, &tr_callback);
+    tf.registerTransformCallback(t, &tr_callback);
     
     robot2Laser.time = base::Time::fromSeconds(10);
     tf.pushDynamicTransformation(robot2Laser);
 
-    tf.requestTransformationAtTime(tr_idx, base::Time::fromSeconds(11));
-    
+    robot2Laser.time = base::Time::fromSeconds(11);
+    tf.pushDynamicTransformation(robot2Laser);
+
     gotSample = false;
     doInterpolation = false;
     

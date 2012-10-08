@@ -40,7 +40,8 @@ class Transformation
         mutable uint64_t failedNoChain;
         mutable uint64_t failedNoSample;
         mutable uint64_t failedInterpolationImpossible;
-
+	boost::function<void (const base::Time &ts)> transformationChangedCallback;
+	
 	void setFrameMapping(const std::string &frameName, const std::string &newName);
 	
 	/**
@@ -52,12 +53,8 @@ class Transformation
          *
          * Calling this method sets the transformation as valid.
 	 * */
-	void setTransformationChain(const std::vector<TransformationElement *> &chain)
-	{
-	    transformationChain = chain;
-            valid = true;
-	}
-
+	void setTransformationChain(const std::vector<TransformationElement *> &chain);
+	
 	Transformation(const Transformation &other)
 	{
 	}
@@ -108,7 +105,13 @@ class Transformation
             failedNoSample = 0;
             failedInterpolationImpossible = 0;
         }
-	
+
+	/**
+	 * Registeres a callback (only one) callback, that is called,
+	 * whenever this transformation changes.
+	 * */
+	void registerUpdateCallback(boost::function<void (const base::Time &ts)> callback);
+        
 	/**
 	 * This functions tries to return the transformation from sourceFrame to targetFrame at the given time.
 	 * 
@@ -140,6 +143,12 @@ class TransformationElement {
 	 * */
 	virtual bool getTransformation(const base::Time &atTime, bool doInterpolation, TransformationType &tr) = 0;
 
+	/**
+	 * This function registers a callback, that should be called every
+	 * time the TransformationElement changes its value. 
+	 * */
+	virtual void setTransformationChangedCallback(boost::function<void (const base::Time &ts)> callback) {};
+	
 	/**
 	 * returns the name of the source frame
 	 * */
@@ -173,7 +182,6 @@ class StaticTransformationElement : public TransformationElement {
 	    tr = staticTransform;
 	    return true;
 	};
-	
     private:
 	TransformationType staticTransform;
 };
@@ -190,6 +198,11 @@ class DynamicTransformationElement : public TransformationElement {
 	
 	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& result);
 
+	virtual void setTransformationChangedCallback(boost::function<void (const base::Time &ts)> callback)
+	{
+	    elementChangedCallback = callback;
+	};
+	
 	int getStreamIdx() const
 	{
 	    return streamIdx;
@@ -198,6 +211,7 @@ class DynamicTransformationElement : public TransformationElement {
     private:
 	
 	void aggregatorCallback(const base::Time &ts, const TransformationType &value); 
+	boost::function<void (const base::Time &ts)> elementChangedCallback;
 
 	aggregator::StreamAligner &aggregator;
 	base::Time lastTransformTime;
@@ -214,6 +228,11 @@ class InverseTransformationElement : public TransformationElement {
 	InverseTransformationElement(TransformationElement *source): TransformationElement(source->getTargetFrame(), source->getSourceFrame()), nonInverseElement(source) {};
 	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& tr);
 
+	virtual void setTransformationChangedCallback(boost::function<void (const base::Time &ts)> callback) 
+	{
+	    nonInverseElement->setTransformationChangedCallback(callback);
+	};
+	
         TransformationElement* getElement();
         TransformationElement const* getElement() const;
     private:
@@ -350,12 +369,11 @@ class Transformer
 	/**
 	 * Registers a callback that will be called every time a new transformation is available 
 	 * for the given Transformation handle.
-	 * FIXME The callback will only be called after requestTransformationAtTime for the 
-	 * returned stream. 
+	 * 
 	 * */
-	int registerTransfromCallback(const Transformation &transform , boost::function<void (const base::Time &ts, const Transformation &t)> callback) 
+	void registerTransformCallback(Transformation &transform , boost::function<void (const base::Time &ts, const Transformation &t)> callback) 
 	{
-	    return aggregator.registerStream<bool>(boost::bind( callback, _1, boost::ref(transform) ), 0, base::Time());
+	    transform.registerUpdateCallback(boost::bind( callback, _1, boost::ref(transform) ));
 	}
 
 	/**

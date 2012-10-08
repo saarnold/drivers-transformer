@@ -31,6 +31,35 @@ void Transformation::updateStatus(TransformationStatus& status) const
     status.failed_interpolation_impossible = failedInterpolationImpossible;
 }
 
+void Transformation::setTransformationChain(const std::vector< TransformationElement* >& chain)
+{
+    transformationChain = chain;
+    valid = true;
+    
+    if(!transformationChangedCallback.empty())
+    {
+	for(std::vector< TransformationElement* >::iterator it = transformationChain.begin();
+	it != transformationChain.end(); it++)
+	{
+	    (*it)->setTransformationChangedCallback(transformationChangedCallback);
+	}
+    }
+}
+
+void Transformation::registerUpdateCallback(boost::function<void (const base::Time &ts)> callback)
+{
+    transformationChangedCallback = callback;
+    
+    if(valid)
+    {
+	for(std::vector< TransformationElement* >::iterator it = transformationChain.begin();
+	it != transformationChain.end(); it++)
+	{
+	    (*it)->setTransformationChangedCallback(transformationChangedCallback);
+	}
+    }
+}
+
 class TransformationNode {
     public:
 	TransformationNode() : parent(NULL) {};
@@ -237,6 +266,10 @@ void DynamicTransformationElement::aggregatorCallback(const base::Time& ts, cons
     gotTransform = true;
     lastTransform = value;
     lastTransformTime = ts;
+    if(!elementChangedCallback.empty())
+    {
+	elementChangedCallback(ts);
+    }
 }
 
 bool DynamicTransformationElement::getTransformation(const base::Time& atTime, bool doInterpolation, transformer::TransformationType& result)

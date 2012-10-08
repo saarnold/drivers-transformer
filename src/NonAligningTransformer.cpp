@@ -24,6 +24,8 @@ void transformer::NonAlignedDynamicTransformationElement::setTransformation(cons
     gotTransform = true;
     lastTransform = tr;
     lastTransformTime = atTime;
+    if(!elementChangedCallback.empty())
+	elementChangedCallback(atTime);
 }
 
 transformer::NonAligningTransformer::NonAligningTransformer()

@@ -12,8 +12,13 @@ public:
     virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& result);
 
     void setTransformation(const base::Time& atTime, const TransformationType& tr);
-    
+    virtual void setTransformationChangedCallback(boost::function<void (const base::Time &ts)> callback)
+    {
+	elementChangedCallback = callback;
+    };
+
 private:
+    boost::function<void (const base::Time &ts)> elementChangedCallback;
     base::Time lastTransformTime;
     TransformationType lastTransform;
     bool gotTransform;
