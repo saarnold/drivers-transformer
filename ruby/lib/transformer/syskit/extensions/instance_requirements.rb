@@ -7,8 +7,20 @@ module Transformer
     module InstanceRequirementsExtension
         # The set of frame mappings defined on this specification
         attribute(:frame_mappings) { Hash.new }
-        # The set of transformation producers defined on this specification
-        attribute(:transform_producers) { Hash.new }
+        # The transformer configuration that should be used for this
+        # InstanceRequirements
+        #
+        # Note that it is passed on to children
+        attr_writer :transformer
+
+        def transformer
+            @transformer ||= Transformer::Configuration.new
+            if block_given?
+                @transformer.instance_eval(&proc)
+                return self
+            else return @transformer
+            end
+        end
 
         # Declare frame mappings
         #
@@ -25,7 +37,8 @@ module Transformer
         # Declare a specialized transformation producer for this requirements
         # and its children
         def use_transform_producer(from, to, producer)
-            self.transform_producers[[from, to]] = producer
+            transformer.dynamic_transform producer,
+                from => to
             self
         end
 
@@ -43,12 +56,15 @@ module Transformer
                 end
             end
 
-            transform_producers.merge!(other_spec.transform_producers) do |(from, to), sel0, sel1|
-                if sel0 != sel1
-                    raise ArgumentError, "cannot merge #{self} and #{other_spec}: producer for #{from} => #{to} differ (resp. #{sel0} and #{sel1})"
-                end
-                sel0
-            end
+            transformer.merge(other_spec.transformer)
+        end
+
+        # Add some transformer configuration to the current configuration
+        #
+        # @param [Transformer::Configuration] the new configuration
+        def use_transforms(transforms)
+            transformer.merge(transforms)
+            self
         end
 
         # Displays the frame mappings when pretty-print an InstanceRequirements

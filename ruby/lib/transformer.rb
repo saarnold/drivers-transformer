@@ -224,10 +224,11 @@ module Transformer
         # graph search. This is the maximum depth of that search
         attr_reader :max_seek_depth
 
-        def initialize(max_seek_depth = 50, &producer_check)
+        def initialize(conf = Configuration.new, max_seek_depth = 50, &producer_check)
             @max_seek_depth = max_seek_depth;
+            @conf = conf
             @checker = ConfigurationChecker.new(producer_check)
-            @conf = Configuration.new(@checker)
+            conf.checker = @checker
         end
 
         # Loads a configuration file. See the documentation of Transformer for
@@ -380,6 +381,21 @@ module Transformer
             @checker = checker
         end
 
+        def initialize_copy(old)
+            super
+            merge(old)
+        end
+
+        # Returns true if this transformer configuration and the given one are
+        # compatible, i.e. if #merge would not remove any information
+        def compatible_with?(other)
+            transforms.each do |fromto, tr|
+                next if !other.transforms.has_key?(fromto)
+                return false if other.transforms[fromto] != tr
+            end
+            true
+        end
+
         # Declares frames
         #
         # Frames need to be declared before they are used in the
@@ -406,6 +422,22 @@ module Transformer
         # True if +frame+ is a defined frame
         def has_frame?(frame)
             self.frames.include?(frame.to_s)
+        end
+
+        def empty?
+            transforms.empty?
+        end
+
+        # Adds the information from another Configuration object to self.
+        # In case some definitions are colliding, the information from +conf+ is
+        # used
+        #
+        # @param [Configuration] conf
+        # @return self
+        def merge(conf)
+            transforms.merge!(conf.transforms)
+            @frames |= conf.frames
+            self
         end
 
         def parse_transform_hash(hash, expected_size)
@@ -528,7 +560,7 @@ module Transformer
 
 
         def pretty_print(pp)
-            pp.test "Transformer configuration"
+            pp.text "Transformer configuration"
             pp.nest(2) do
                 pp.breakable
                 pp.text "Available Frames:"

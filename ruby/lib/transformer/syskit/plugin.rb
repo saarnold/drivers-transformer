@@ -5,9 +5,10 @@ module Transformer
         # +engine.transformer_config+ must contain the transformation configuration
         # object.
         def self.add_needed_producers(engine, tasks)
-            config = Syskit.conf.transformation_manager
-
             tasks.each do |task|
+                tr_config = task.transformer
+                tr_manager = Transformer::TransformationManager.new(tr_config)
+
                 tr = task.model.transformer
                 Transformer.debug { "computing needed static and dynamic transformations for #{task}" }
 
@@ -24,8 +25,10 @@ module Transformer
                         # Engine#instanciate applies
                         next
                     end
-
-                    self_producers = task.transform_producers.dup
+                    
+                    # Register transformation producers that are connected to
+                    # some of our transformation input ports
+                    self_producers = Hash.new
                     tr.each_transform_port do |port, transform|
                         if port.kind_of?(Orocos::Spec::InputPort) && task.connected?(port.name)
                             port_from = task.selected_frames[transform.from]
@@ -40,7 +43,7 @@ module Transformer
                     end
                     chain =
                         begin
-                            config.transformation_chain(from, to, self_producers)
+                            tr_manager.transformation_chain(from, to, self_producers)
                         rescue Exception => e
                             if engine.options[:validate_network]
                                 raise InvalidChain.new(task, trsf.from, from, trsf.to, to, e),
@@ -144,10 +147,10 @@ module Transformer
             tasks = plan.find_local_tasks(Syskit::Component).roots(Roby::TaskStructure::Hierarchy)
             tasks.each do |root_task|
                 FramePropagation.initialize_selected_frames(root_task, Hash.new)
-                FramePropagation.initialize_transform_producers(root_task, Hash.new)
+                FramePropagation.initialize_transform_producers(root_task, Transformer::Configuration.new)
                 Roby::TaskStructure::Hierarchy.each_bfs(root_task, BGL::Graph::ALL) do |from, to, info|
                     FramePropagation.initialize_selected_frames(to, from.selected_frames)
-                    FramePropagation.initialize_transform_producers(to, from.transform_producers)
+                    FramePropagation.initialize_transform_producers(to, from.transformer)
                 end
             end
         end
@@ -203,6 +206,7 @@ module Transformer
             Syskit::InstanceRequirements.include Transformer::InstanceRequirementsExtension
             Syskit::NetworkGeneration::Engine.include Transformer::EngineExtension
             Syskit::RobyApp::Configuration.include Transformer::ConfigurationExtension
+            Syskit::Actions::Profile.include Transformer::ProfileExtension
 
             Roby.app.filter_out_patterns.push(/^#{Regexp.quote(__FILE__)}/)
         end

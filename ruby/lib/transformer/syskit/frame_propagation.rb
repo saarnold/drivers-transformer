@@ -430,17 +430,11 @@ module Transformer
         end
 
         def self.initialize_transform_producers(task, current_selection)
-            if task.requirements
-                new_selection = task.requirements.transform_producers
-            else
-                new_selection = Hash.new
-            end
-
-            task.transform_producers =
-                if new_selection.empty?
-                    current_selection.dup
+            task.transformer =
+                if task.requirements
+                    current_selection.dup.merge(task.requirements.transformer)
                 else
-                    new_selection.dup
+                    current_selection.dup
                 end
         end
     end

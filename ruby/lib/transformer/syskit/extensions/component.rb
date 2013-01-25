@@ -2,8 +2,7 @@ module Transformer
     # Module used to extend objects of the class Syskit::Component
     module ComponentExtension
         attribute(:selected_frames) { Hash.new }
-        # The set of specialized transformation producers defined for this task
-        attribute(:transform_producers) { Hash.new }
+        attribute(:transformer) { Transformer::Configuration.new }
 
         def can_merge?(other)
             if !(result = super)
@@ -18,14 +17,7 @@ module Transformer
                 end
             end
 
-            transform_producers.each do |from_to, spec|
-                if other_spec = other.transform_producers[from_to]
-                    if other_spec != spec
-                        return false
-                    end
-                end
-            end
-
+            transformer.compatible_with?(other.transformer)
             return true
         end
 
