@@ -40,7 +40,13 @@ module Transformer
         # Called by Profile to modify an instance requirement object w.r.t. the
         # transformer information 
         def inject_di_context(req)
+            super if defined? super
             req.transformer.merge(transformer)
+        end
+
+        def clear_model
+            super if defined? super
+            @transformer = nil
         end
     end
 end
