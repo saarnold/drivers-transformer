@@ -177,19 +177,19 @@ module Transformer
 
         def self.enable
             Syskit::NetworkGeneration::Engine.register_instanciation_postprocessing do |engine, plan|
-                if engine.transformer_enabled?
+                if Syskit.conf.transformer_enabled?
                     instanciation_postprocessing_hook(engine, plan)
                 end
             end
 
             Syskit::NetworkGeneration::Engine.register_instanciated_network_postprocessing do |engine, plan, validate|
-                if engine.transformer_enabled?
+                if Syskit.conf.transformer_enabled?
                     instanciated_network_postprocessing_hook(engine, plan, validate)
                 end
             end
 
             Syskit::NetworkGeneration::Engine.register_deployment_postprocessing do |engine, plan|
-                if engine.transformer_enabled?
+                if Syskit.conf.transformer_enabled?
                     deployment_postprocessing_hook(engine, plan)
                 end
             end

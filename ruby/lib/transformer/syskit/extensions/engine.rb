@@ -1,14 +1,12 @@
 module Transformer
     # Module used to add some functionality to Syskit::NetworkGeneration::Engine
     module EngineExtension
-        attr_predicate :transformer_enabled?, true
-
         # During network validation, checks that all required frames have been
         # configured
         def validate_generated_network(plan, options)
             super if defined? super
 
-            if transformer_enabled?
+            if Syskit.conf.transformer_enabled?
                 plan.find_local_tasks(Syskit::TaskContext).each do |task|
                     next if !(tr = task.model.transformer)
 
