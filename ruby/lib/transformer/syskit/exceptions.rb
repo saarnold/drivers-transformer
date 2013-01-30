@@ -40,7 +40,7 @@ module Transformer
         end
 
         def pretty_print(pp)
-            pp.text "conflicting frames selected for #{task}.#{frame}: #{current_frame} != #{new_frame}"
+            pp.text "conflicting frames selected for #{task}.#{frame} (#{current_frame} != #{new_frame}): #{message}"
             if !related_ports.empty?
                 pp.breakable
                 pp.text "related ports:"
