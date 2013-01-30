@@ -106,23 +106,33 @@ module Transformer
         # concatenated
         attr_reader :inversions
 
-        # Initializes the object using a leaf TransformNode
+        # Initializes the chain
         #
-        # The object will be initialized by traversing the parents of
-        # +transformation_node+.
-        def initialize(transformation_node)
+        # @overload initialize("frame_name")
+        #   @param [String] initial
+        #   Sets the chain to an identity transformation between the given frame
+        #   name and itself
+        # @overload initialize(node)
+        #   @param [FrameNode] initial
+        #   Initialize the chain by traversing the parents of the initial frame
+        #   node. This initial node is basically treated as the leaf node in a
+        #   chain
+        def initialize(initial)
             @links = Array.new
             @inversions = Array.new
 
-            to = transformation_node.frame
-            cur_node = transformation_node
-            while cur_node.parent
-                @links.unshift(cur_node.link_to_parent)
-                @inversions.unshift(cur_node.inverse)
-                cur_node = cur_node.parent
+            if initial.respond_to?(:to_str)
+                super(initial, initial)
+            else
+                to = initial.frame
+                cur_node = initial
+                while cur_node.parent
+                    @links.unshift(cur_node.link_to_parent)
+                    @inversions.unshift(cur_node.inverse)
+                    cur_node = cur_node.parent
+                end
+                super(cur_node.frame, to)
             end
-
-            super(cur_node.frame, to)
         end
 
         # Returns the set of static transformations and producers needed to
@@ -267,6 +277,10 @@ module Transformer
             to = to.to_s
             checker.check_frame(from, conf.frames)
             checker.check_frame(to, conf.frames)
+
+            if from == to
+                return TransformChain.new(from)
+            end
 
             known_transforms = Set.new
             all_transforms = Hash.new { |h, k| h[k] = Set.new }
