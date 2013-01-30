@@ -137,56 +137,48 @@ module Transformer
             result
         end
 
-        def initial_information(task)
+        # This adds port information from device models only for ports that are
+        # not associated with a transform. When there is a frame-to-port or
+        # transform-to-port association registered, the device information is
+        # added earlier in {initial_frame_selection_from_device}
+        def propagate_device_information(task, dev)
+            selected_frame = dev.frame
+            selected_transform = dev.frame_transform
             tr = task.model.transformer
 
-            # Add frame information from the devices if there is some
-            # This does not require the presence of a transformer spec
-            if task.kind_of?(Syskit::Device)
-                task.each_master_device do |dev|
-                    selected_frame = dev.frame
-                    selected_transform = dev.frame_transform
-
-                    # Two cases:
-                    #  - the device is using the transformer (has frame
-                    #    definitions). Assign the selected frame
-                    #  - the device is NOT using the transformer. Therefore,
-                    #    we must only add the relevant port info
-                    task.find_all_driver_services_for(dev) do |srv|
-                        srv.each_task_output_port(true) do |out_port|
-                            # Do not associate the ports that output transformations
-                            if selected_transform && Transformer.transform_port?(out_port)
-                                from, to = selected_transform.from, selected_transform.to
-                                if tr && (transform = tr.find_transform_of_port(out_port))
-                                    if from
-                                        FramePropagation.debug { "selecting #{from} on #{task} for #{transform.from} from the source frame of device #{dev.name}" }
-                                        task.select_frame(transform.from, from)
-                                    end
-                                    if to
-                                        FramePropagation.debug { "selecting #{to} on #{task} for #{transform.to} from the target frame of device #{dev.name}" }
-                                        task.select_frame(transform.to, to)
-                                    end
-                                else
-                                    add_port_info(task, out_port.name,
-                                        TransformAnnotation.new(task, nil, from, nil, to))
-                                    done_port_info(task, out_port.name)
-                                end
-                            elsif selected_frame
-                                if tr && (frame_name = tr.find_frame_of_port(out_port))
-                                    FramePropagation.debug { "selecting #{selected_frame} on #{task} for #{frame_name} from the frame of device #{dev.name}" }
-                                    task.select_frame(frame_name, selected_frame)
-                                else
-                                    add_port_info(task, out_port.name,
-                                        FrameAnnotation.new(task, frame_name, selected_frame))
-                                    done_port_info(task, out_port.name)
-                                end
-                            end
+            task.find_all_driver_services_for(dev).each do |srv|
+                srv.each_output_port do |out_port|
+                    out_port = out_port.to_component_port
+                    # Do not associate the ports that output transformations
+                    if selected_transform && Transformer.transform_port?(out_port)
+                        from, to = selected_transform.from, selected_transform.to
+                        if !tr || !tr.find_transform_of_port(out_port)
+                            add_port_info(task, out_port.name,
+                                TransformAnnotation.new(task, nil, from, nil, to))
+                            done_port_info(task, out_port.name)
+                        end
+                    elsif selected_frame
+                        if !tr || !tr.find_frame_of_port(out_port)
+                            add_port_info(task, out_port.name,
+                                FrameAnnotation.new(task, selected_frame, selected_frame))
+                            done_port_info(task, out_port.name)
                         end
                     end
                 end
             end
+        end
+
+        def initial_information(task)
+            # Add frame information from the devices if there is some
+            # This does not require the presence of a transformer spec
+            if task.respond_to?(:each_master_device)
+                task.each_master_device do |dev|
+                    propagate_device_information(task, dev)
+                end
+            end
 
             # Now look for transformer-specific information
+            tr = task.model.transformer
             return if !tr
 
             # Now add information for all ports for which we know the frame
@@ -218,7 +210,7 @@ module Transformer
                 Transformer.debug "initially selected frames for #{task}"
                 available_frames = task.model.transformer.available_frames.dup
                 task.selected_frames.each do |frame_name, selected_frame|
-                    Transformer.debug "  selected #{frame_name} for #{selected_frame}"
+                    Transformer.debug "  selected #{selected_frame} for #{frame_name}"
                     available_frames.delete(frame_name)
                 end
                 Transformer.debug "  #{available_frames.size} frames left to pick: #{available_frames.to_a.sort.join(", ")}"
@@ -363,69 +355,91 @@ module Transformer
             return has_all
         end
 
-        def self.initialize_selected_frames(task, current_selection)
-            # Do selection for the frames that can't be configured anyways
-            if task.model.respond_to?(:transformer) && (tr = task.model.transformer)
-                tr.each_statically_mapped_frame do |frame_name|
-                    debug { "selected frame #{frame_name} on #{task} for #{frame_name}: static frame" }
-                    task.select_frame(frame_name, frame_name)
-                end
-            end
+        # Given a task and a device, map the frame or frame transform
+        # information of the device towards frame information on the task
+        #
+        # The mapping is done through ports, i.e. it requires frame-to-port
+        # and/or transform-to-port information to be set properly on the task
+        # model. For ports that do not have this information, the frame
+        # configuration stored in the device model is propagated during the
+        # frame propagation pass by {propagate_device_information}
+        #
+        # @param [TaskContext] task
+        # @param [DeviceInstance] dev
+        # @returns [Hash<String,String>] the frame mappings, from a task local
+        #   frame to a global frame name
+        def self.initial_frame_selection_from_device(task, dev)
+            tr = task.model.transformer
+            selected_frame = dev.frame
+            selected_transform = dev.frame_transform
 
-            if task.requirements
-                new_selection = task.requirements.frame_mappings
-            else
-                new_selection = Hash.new
-            end
+            new_selections = Hash.new
+            task.find_all_driver_services_for(dev).each do |srv|
+                srv.each_output_port do |out_port|
+                    out_port = out_port.to_component_port
 
-            # If the task is associated to a device, check the frame
-            # declarations on the device declaration, and assign them. The
-            # assignation is done through the port (i.e. device->port and
-            # port->frame), so it requires frame-to-port or transform-to-port
-            # associations
-            if task.respond_to?(:each_master_device) && (tr = task.model.transformer)
-                task.each_master_device do |dev|
-                    selected_frame = dev.frame
-                    selected_transform = dev.frame_transform
-
-                    # Two cases:
-                    #  - the device is using the transformer (has frame
-                    #    definitions). Assign the selected frame
-                    #  - the device is NOT using the transformer. Therefore,
-                    #    we must only add the relevant port info
-                    #
-                    # This part covers the part where we have to store the frame
-                    # selection (first part). The second part is covered in
-                    # #initial_information
-                    task.find_all_driver_services_for(dev) do |srv|
-                        srv.each_task_output_port(true) do |out_port|
-                            # Do not associate the ports that output transformations
-                            if selected_transform && Transformer.transform_port?(out_port)
-                                from, to = selected_transform.from, selected_transform.to
-                                if transform = tr.find_transform_of_port(out_port)
-                                    if from
-                                        new_selection[transform.from] = from
-                                    end
-                                    if to
-                                        new_selection[transform.to] = to
-                                    end
-                                end
-                            elsif selected_frame
-                                if frame_name = tr.find_frame_of_port(out_port)
-                                    new_selection[frame_name] = selected_frame
-                                end
+                    if selected_transform && Transformer.transform_port?(out_port)
+                        from, to = selected_transform.from, selected_transform.to
+                        if transform = tr.find_transform_of_port(out_port)
+                            if from
+                                new_selections[transform.from] = from
                             end
+                            if to
+                                new_selections[transform.to] = to
+                            end
+                        end
+                    elsif selected_frame
+                        if frame_name = tr.find_frame_of_port(out_port)
+                            new_selections[frame_name] = selected_frame
                         end
                     end
                 end
             end
+            new_selections
+        end
 
-            if new_selection.empty?
+        def self.initialize_selected_frames(task, current_selection)
+            tr = if task.model.respond_to?(:transformer)
+                     task.model.transformer
+                 end
+
+            new_selections = if task.requirements
+                                 task.requirements.frame_mappings
+                             else
+                                 Hash.new
+                             end
+
+            static_frames = Hash.new
+
+            # Do selection for the frames that can't be configured anyways
+            if tr
+                if task.respond_to?(:each_master_device)
+                    task.each_master_device do |dev|
+                        device_selections = initial_frame_selection_from_device(task, dev)
+                        debug do
+                            debug "selecting frames on #{task} from #{dev}"
+                            debug "  #{device_selections}"
+                        end
+                        new_selections.merge!(device_selections) do |frame, req_sel, dev_sel|
+                            raise FrameSelectionConflict.new(task, frame, req_sel, dev_sel), "mismatch between selected frame #{req_sel} and device frame #{dev_sel} from #{dev.name}"
+                        end
+                    end
+                end
+                tr.each_statically_mapped_frame do |frame_name|
+                    debug { "selected frame #{frame_name} on #{task} for #{frame_name}: static frame" }
+                    if (sel = new_selections[frame_name]) && (sel != frame_name)
+                        raise StaticFrameChangeError.new(task, frame_name, sel)
+                    end
+                    static_frames[frame_name] = frame_name
+                end
+            end
+
+            if new_selections.empty?
                 debug { "selecting frames #{current_selection} propagated from its parents" }
-                task.select_frames(current_selection)
+                task.select_frames(current_selection.merge(static_frames))
             else
-                debug { "adding frame selection from #{task}: #{new_selection}" }
-                task.select_frames(new_selection)
+                debug { "adding frame selection from #{task}: #{new_selections}" }
+                task.select_frames(new_selections.merge(static_frames))
             end
         end
 

@@ -28,37 +28,31 @@ module Transformer
         # The selected frames might be nil if no transformation has been
         # selected
         def each_transform_output
+            return enum_for(:each_transform_output) if !block_given?
             if !(tr = model.transformer)
                 return
             end
 
-            model.each_output_port do |port|
-                if associated_transform = tr.find_transform_of_port(port)
-                    from = selected_frames[associated_transform.from]
-                    to   = selected_frames[associated_transform.to]
-                    yield(port, from, to)
-                end
+            model.each_transform_output do |port, from, to|
+                from = selected_frames[from]
+                to   = selected_frames[to]
+                yield(port.bind(self), from, to)
             end
         end
 
         # Given a port associated with a transformer transformation, assign the
         # given frames to this local transformation
         def select_port_for_transform(port, from, to)
-            if port.respond_to?(:name)
-                if model.find_output_port(port.name) != port
-                    raise ArgumentError, "#{port.name} is not an output port of #{self}"
-                end
-                port = port.name
+            if port.component != self
+                raise ArgumentError, "#{port} is not a port of #{task}"
             end
 
+            port_name = port.name
             if !(tr = model.transformer)
-                tr = model.transformer do
-                    transform_output port, from => to
-                end
+                tr = model.transformer
             end
-
-            if !(transform = tr.find_transform_of_port(port))
-                transform = tr.transform_output(port, from => to)
+            if !(transform = tr.find_transform_of_port(port_name))
+                transform = tr.transform_output port_name, from => to
             end
             select_frames(transform.from => from, transform.to => to)
         end

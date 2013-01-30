@@ -4,9 +4,9 @@ module Transformer
 
         def each_transform_output
             mappings = model.port_mappings_for_task
-            task.each_transform_output do |port, port_from, port_to|
+            component.each_transform_output do |port, port_from, port_to|
                 if mapped = mappings.find { |_, task_port| port.name == task_port }
-                    yield(model.find_output_port(mapped.first), port_from, port_to)
+                    yield(find_output_port(mapped.first), port_from, port_to)
                 end
             end
         end
@@ -23,11 +23,11 @@ module Transformer
                 raise ArgumentError, "#{port} is not a known output port of #{self}"
             end
 
-            task_port = task.model.find_output_port(task_port_name)
+            task_port = component.find_output_port(task_port_name)
             if !task_port
                 raise ArgumentError, "#{port} is not an output port of #{self}"
             end
-            task.select_port_for_transform(task_port, from, to)
+            component.select_port_for_transform(task_port, from, to)
         end
     end
 end

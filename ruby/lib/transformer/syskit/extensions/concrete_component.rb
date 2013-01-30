@@ -28,7 +28,7 @@ module Transformer
             model.each_output_port do |port|
                 next if not_candidates.include?(port)
                 if Transformer.transform_port?(port)
-                    candidates << port
+                    candidates << port.bind(self)
                 end
             end
 

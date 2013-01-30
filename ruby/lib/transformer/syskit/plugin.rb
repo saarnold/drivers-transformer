@@ -2,9 +2,10 @@ module Transformer
     module SyskitPlugin
         # Adds the transformation producers needed to properly setup the system.
         #
-        # +engine.transformer_config+ must contain the transformation configuration
-        # object.
+        # @return [Boolean] true if producers have been added to the plan and
+        #   false otherwise
         def self.add_needed_producers(engine, tasks)
+            instanciated_producers = false
             tasks.each do |task|
                 tr_config = task.transformer
                 tr_manager = Transformer::TransformationManager.new(tr_config)
@@ -36,10 +37,18 @@ module Transformer
                             self_producers[[port_from, port_to]] = port
                         end
                     end
+                    # Special case: dynamic_transformations
+                    task.dynamic_transformations_port.each_concrete_connection do |out_port, _|
+                        transform = out_port.produced_transformation
+                        if transform.from && transform.to
+                            self_producers[[transform.from, transform.to]] = out_port.model.orogen_model
+                        end
+                    end
 
                     Transformer.debug do
                         Transformer.debug "looking for chain for #{from} => #{to} in #{task}"
                         Transformer.debug "  with local producers: #{self_producers}"
+                        break
                     end
                     chain =
                         begin
@@ -56,8 +65,8 @@ module Transformer
 
                     static, dynamic = chain.partition
                     Transformer.debug do
-                        Transformer.debug "#{static.size} static transformations"
-                        Transformer.debug "#{dynamic.size} dynamic transformations"
+                        Transformer.debug "#{static.to_a.size} static transformations"
+                        Transformer.debug "#{dynamic.to_a.size} dynamic transformations"
                         break
                     end
 
@@ -65,46 +74,73 @@ module Transformer
                         static_transforms[[trsf.from, trsf.to]] = trsf
                     end
                     dynamic.each do |dyn|
-                        if dyn.producer.kind_of?(Orocos::Spec::InputPort)
-                            next
-                        end
+                        # If we find a producer that is an input port, it means
+                        # that the task is already explicitly connected to this
+                        # producer (injected in the self_producers hash above).
+                        # Just ignore it here, we don't need to instanciate it
+                        # ourselves
+                        next if dyn.producer.kind_of?(Orocos::Spec::InputPort)
                         dynamic_transforms[dyn.producer] << dyn
                     end
                 end
 
                 task.static_transforms = static_transforms.values
-                dynamic_transforms.each do |producer, transformations|
-                    producer_task = producer.instanciate(engine.work_plan)
-                    task.should_start_after producer_task.as_plan.start_event
+                dynamic_transforms.each do |producer_model, transformations|
+                    needed_transformations = transformations.find_all do |dyn|
+                        role_name = "transformer_#{dyn.from}2#{dyn.to}"
+                        !task.find_child_from_role(role_name)
+                    end
+                    next if needed_transformations.empty?
+
+                    producer = producer_model.instanciate(engine.work_plan)
+                    producer_task = producer.to_task
+
+                    instanciated_producers = true
+                    Transformer.debug do
+                        Transformer.debug "instanciated #{producer_task} for #{task}"
+                        break
+                    end
+
+                    task.should_start_after producer_task.start_event
                     transformations.each do |dyn|
                         task.depends_on(producer_task, :role => "transformer_#{dyn.from}2#{dyn.to}")
 
-                        out_port = producer_task.find_port_for_transform(dyn.from, dyn.to)
+                        out_port = producer.find_port_for_transform(dyn.from, dyn.to)
                         if !out_port
                             raise TransformationPortNotFound.new(producer_task, dyn.from, dyn.to)
                         end
-                        producer_task.select_port_for_transform(out_port, dyn.from, dyn.to)
-                        producer_task.connect_ports(task, [out_port.name, "dynamic_transformations"] => Hash.new)
+                        producer.select_port_for_transform(out_port, dyn.from, dyn.to)
+                        out_port.connect_to task.dynamic_transformations_port
+                    end
+
+                    # Manually propagate device information on the new task
+                    if producer_task.model.transformer && producer_task.respond_to?(:each_master_device)
+                        producer_task.each_master_device do |dev|
+                            device_frames = FramePropagation.
+                                initial_frame_selection_from_device(producer_task, dev)
+                            begin
+                                producer_task.select_frames(device_frames)
+                            rescue FrameSelectionConflict => e
+                                raise e, "#{e.message}: conflict between frame #{e.current_frame} selected for #{e.frame} and frame #{e.new_frame} from device #{dev.name}", e.backtrace
+                            end
+                        end
                     end
                 end
             end
+            instanciated_producers
         end
 
         def self.update_configuration_state(state, tasks)
             state.port_transformation_associations.clear
             state.port_frame_associations.clear
-            state.static_transformations =
-                Syskit.conf.transformation_manager.conf.
-                    enum_for(:each_static_transform).map do |static|
-                        rbs = Types::Base::Samples::RigidBodyState.invalid
-                        rbs.sourceFrame = static.from
-                        rbs.targetFrame = static.to
-                        rbs.position = static.translation
-                        rbs.orientation = static.rotation
-                        rbs
-                    end
+
+            static_transforms = Hash.new
 
             tasks.each do |task|
+                task.requirements.transformer.each_static_transform do |static|
+                    static_transforms[[static.from, static.to]] = static
+                end
+                
                 tr = task.model.transformer
                 task_name = task.orocos_name
                 tr.each_annotated_port do |port, frame_name|
@@ -132,6 +168,15 @@ module Transformer
                     end
                 end
             end
+
+            state.static_transformations = static_transforms.values.map do |static|
+                rbs = Types::Base::Samples::RigidBodyState.invalid
+                rbs.sourceFrame = static.from
+                rbs.targetFrame = static.to
+                rbs.position = static.translation
+                rbs.orientation = static.rotation
+                rbs
+            end
         end
 
         def self.instanciation_postprocessing_hook(engine, plan)
@@ -156,14 +201,17 @@ module Transformer
         end
 
         def self.instanciated_network_postprocessing_hook(engine, plan, validate)
-            FramePropagation.compute_frames(plan)
+            needed = true
+            while needed
+                FramePropagation.compute_frames(plan)
 
-            transformer_tasks = plan.find_local_tasks(Syskit::TaskContext).
-                find_all { |task| task.model.transformer }
+                transformer_tasks = plan.find_local_tasks(Syskit::TaskContext).
+                    find_all { |task| task.model.transformer }
 
-            # Now find out the frame producers that each task needs, and add them to
-            # the graph
-            add_needed_producers(engine, transformer_tasks)
+                # Now find out the frame producers that each task needs, and add them to
+                # the graph
+                needed = add_needed_producers(engine, transformer_tasks)
+            end
         end
 
         def self.deployment_postprocessing_hook(engine, plan)
@@ -197,6 +245,8 @@ module Transformer
             Syskit::Component.include Transformer::ComponentExtension
             Syskit::Component.extend Transformer::ComponentModelExtension
             Syskit::TaskContext.include Transformer::TaskContextExtension
+            Syskit::TaskContext.extend Transformer::TaskContextModelExtension
+            Syskit::Port.include Transformer::PortExtension
             Syskit::Composition.include Transformer::CompositionExtension
             Syskit::BoundDataService.include Transformer::BoundDataServiceExtension
             Roby::Plan.include Transformer::PlanExtension
