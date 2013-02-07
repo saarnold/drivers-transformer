@@ -94,6 +94,7 @@ module Transformer
 
                     producer = producer_model.instanciate(engine.work_plan)
                     producer_task = producer.to_task
+                    producer_task.transformer.merge(tr_config)
 
                     instanciated_producers = true
                     Transformer.debug do
