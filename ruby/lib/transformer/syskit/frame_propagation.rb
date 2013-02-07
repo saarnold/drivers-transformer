@@ -153,12 +153,20 @@ module Transformer
                     if selected_transform && Transformer.transform_port?(out_port)
                         from, to = selected_transform.from, selected_transform.to
                         if !tr || !tr.find_transform_of_port(out_port.name)
+                            Transformer.debug do
+                                Transformer.debug "directly associating transform #{from} => #{to} to port #{out_port} using information from device #{dev.full_name} driven by #{srv.name}"
+                                break
+                            end
                             add_port_info(task, out_port.name,
                                 TransformAnnotation.new(task, nil, from, nil, to))
                             done_port_info(task, out_port.name)
                         end
                     elsif selected_frame
                         if !tr || !tr.find_frame_of_port(out_port.name)
+                            Transformer.debug do
+                                Transformer.debug "directly associating frame #{selected_frame} to port #{out_port} using information from device #{dev.full_name} driven by #{srv.name}"
+                                break
+                            end
                             add_port_info(task, out_port.name,
                                 FrameAnnotation.new(task, selected_frame, selected_frame))
                             done_port_info(task, out_port.name)
@@ -382,14 +390,17 @@ module Transformer
                         from, to = selected_transform.from, selected_transform.to
                         if transform = tr.find_transform_of_port(out_port.name)
                             if from
+                                Transformer.debug { "selecting #{from} for #{transform.from} on #{task}, using information from device #{dev}" }
                                 new_selections[transform.from] = from
                             end
                             if to
+                                Transformer.debug { "selecting #{to} for #{transform.to} on #{task}, using information from device #{dev}" }
                                 new_selections[transform.to] = to
                             end
                         end
                     elsif selected_frame
                         if frame_name = tr.find_frame_of_port(out_port.name)
+                            Transformer.debug { "selecting #{selected_frame} for #{frame_name} on #{task}, using information from device #{dev}" }
                             new_selections[frame_name] = selected_frame
                         end
                     end
