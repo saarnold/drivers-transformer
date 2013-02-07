@@ -374,7 +374,7 @@ module Transformer
             end
 
             if(frames && !frames.include?(frame))
-                raise InvalidConfiguration, "unknown frame #{frame}"
+                raise InvalidConfiguration, "unknown frame #{frame}, known frames: #{frames.to_a.sort.join(", ")}"
             end
         end
 
