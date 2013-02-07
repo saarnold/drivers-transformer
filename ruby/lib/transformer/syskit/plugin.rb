@@ -180,8 +180,6 @@ module Transformer
         end
 
         def self.instanciation_postprocessing_hook(engine, plan)
-            Roby.app.using_task_library('transformer')
-            Syskit.conf.use_deployment('transformer_broadcaster')
             broadcasters = plan.find_local_tasks(Transformer::Task).not_finished.to_a
             if broadcasters.empty?
                 plan.add_mission(task = Transformer::Task.instanciate(plan))
@@ -224,6 +222,9 @@ module Transformer
         end
 
         def self.enable
+            Roby.app.using_task_library('transformer')
+            Syskit.conf.use_deployment('transformer_broadcaster')
+
             Syskit::NetworkGeneration::Engine.register_instanciation_postprocessing do |engine, plan|
                 if Syskit.conf.transformer_enabled?
                     instanciation_postprocessing_hook(engine, plan)
@@ -255,9 +256,11 @@ module Transformer
             Syskit::Graphviz.include Transformer::GraphvizExtension
             Syskit::InstanceRequirements.include Transformer::InstanceRequirementsExtension
             Syskit::NetworkGeneration::Engine.include Transformer::EngineExtension
-            Syskit::RobyApp::Configuration.include Transformer::ConfigurationExtension
             Syskit::Actions::Profile.include Transformer::ProfileExtension
+        end
 
+        def self.register
+            Syskit::RobyApp::Configuration.include Transformer::ConfigurationExtension
             Roby.app.filter_out_patterns.push(/^#{Regexp.quote(__FILE__)}/)
         end
     end

@@ -1,2 +1,2 @@
 require 'transformer/syskit'
-Transformer::SyskitPlugin.enable
+Transformer::SyskitPlugin.register
