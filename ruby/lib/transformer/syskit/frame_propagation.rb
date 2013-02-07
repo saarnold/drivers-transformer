@@ -174,6 +174,12 @@ module Transformer
                     end
                 end
             end
+
+            if dev.respond_to?(:each_slave)
+                dev.each_slave do |slave_dev|
+                    propagate_device_information(task, slave_dev)
+                end
+            end
         end
 
         def initial_information(task)
@@ -403,6 +409,14 @@ module Transformer
                             Transformer.debug { "selecting #{selected_frame} for #{frame_name} on #{task}, using information from device #{dev}" }
                             new_selections[frame_name] = selected_frame
                         end
+                    end
+                end
+            end
+
+            if dev.respond_to?(:each_slave)
+                dev.each_slave do |slave_dev|
+                    new_selections.merge!(initial_frame_selection_from_device(task, slave_dev)) do |frame, dev_frame, slave_frame|
+                        raise FrameSelectionConflict.new(task, frame, dev_frame, slave_frame), "mismatch between in selection of frame #{frame} in #{task}: device #{dev} requires #{dev_frame} and its slave #{slave_dev.full_name} requires #{slave_frame}"
                     end
                 end
             end
