@@ -469,12 +469,13 @@ module Transformer
         end
 
         def self.initialize_transform_producers(task, current_selection)
-            task.transformer =
+            new_info =
                 if task.requirements
                     current_selection.dup.merge(task.requirements.transformer)
                 else
                     current_selection.dup
                 end
+            task.transformer.merge(new_info)
         end
     end
 end
