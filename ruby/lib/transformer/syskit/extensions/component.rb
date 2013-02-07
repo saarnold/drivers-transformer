@@ -21,6 +21,11 @@ module Transformer
             return true
         end
 
+        def merge(merged_task)
+            transformer.merge(merged_task.transformer)
+            super if defined? super
+        end
+
         # Selects +selected_frame+ for the task's +frame_name+
         #
         # @throws FrameSelectionConflict if a different frame was already selected
