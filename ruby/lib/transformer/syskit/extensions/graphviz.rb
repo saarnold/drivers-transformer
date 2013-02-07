@@ -40,8 +40,8 @@ module Transformer
                         #    and the output port. This is handled later.
                         #  - the device is NOT using the transformer. Add the
                         #    vertex and edge now
-                        srv.each_output_port(true) do |out_port|
-                            next if tr && tr.find_frame_of_port(out_port)
+                        srv.each_output_port do |out_port|
+                            next if tr && tr.find_frame_of_port(out_port.name)
 
                             if transform_id && Transformer.transform_port?(out_port)
                                 add_edge([transform_id, device_task], [out_port, device_task], "dir=none")
