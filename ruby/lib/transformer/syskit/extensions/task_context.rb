@@ -93,6 +93,7 @@ module Transformer
                 end
                 v1 || v2
             end
+            transformer.merge(merged_task.transformer)
             super if defined? super
         end
 
