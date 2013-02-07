@@ -15,7 +15,7 @@ module Transformer
         # transform is associated at all with this port
         def find_transform_of_port(port)
             return if !(tr = model.transformer)
-            if associated_transform = tr.find_transform_of_port(port)
+            if associated_transform = tr.find_transform_of_port(port.name)
                 from = selected_frames[associated_transform.from]
                 to   = selected_frames[associated_transform.to]
                 Transform.new(from, to)

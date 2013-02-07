@@ -147,18 +147,18 @@ module Transformer
             tr = task.model.transformer
 
             task.find_all_driver_services_for(dev).each do |srv|
-                srv.each_output_port do |out_port|
+                srv.model.each_output_port do |out_port|
                     out_port = out_port.to_component_port
                     # Do not associate the ports that output transformations
                     if selected_transform && Transformer.transform_port?(out_port)
                         from, to = selected_transform.from, selected_transform.to
-                        if !tr || !tr.find_transform_of_port(out_port)
+                        if !tr || !tr.find_transform_of_port(out_port.name)
                             add_port_info(task, out_port.name,
                                 TransformAnnotation.new(task, nil, from, nil, to))
                             done_port_info(task, out_port.name)
                         end
                     elsif selected_frame
-                        if !tr || !tr.find_frame_of_port(out_port)
+                        if !tr || !tr.find_frame_of_port(out_port.name)
                             add_port_info(task, out_port.name,
                                 FrameAnnotation.new(task, selected_frame, selected_frame))
                             done_port_info(task, out_port.name)
@@ -375,12 +375,12 @@ module Transformer
 
             new_selections = Hash.new
             task.find_all_driver_services_for(dev).each do |srv|
-                srv.each_output_port do |out_port|
+                srv.model.each_output_port do |out_port|
                     out_port = out_port.to_component_port
 
                     if selected_transform && Transformer.transform_port?(out_port)
                         from, to = selected_transform.from, selected_transform.to
-                        if transform = tr.find_transform_of_port(out_port)
+                        if transform = tr.find_transform_of_port(out_port.name)
                             if from
                                 new_selections[transform.from] = from
                             end
@@ -389,7 +389,7 @@ module Transformer
                             end
                         end
                     elsif selected_frame
-                        if frame_name = tr.find_frame_of_port(out_port)
+                        if frame_name = tr.find_frame_of_port(out_port.name)
                             new_selections[frame_name] = selected_frame
                         end
                     end
