@@ -140,13 +140,13 @@ module Transformer
                 end
             end
         end
+    end
 
-        module ClassExtension
-            # Allows access to the transformer declaration from the Roby task model
-            #
-            # It can also be used to define transformer specifications on tasks
-            # that don't have one (for instance to tie ports to frames)
-            def transformer(*args, &block); orogen_model.transformer(*args, &block) end
-        end
+    module TransformerConfigurationAccess
+        # Allows access to the transformer declaration from the Roby task model
+        #
+        # It can also be used to define transformer specifications on tasks
+        # that don't have one (for instance to tie ports to frames)
+        def transformer(*args, &block); orogen_model.transformer(*args, &block) end
     end
 end

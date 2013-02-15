@@ -262,6 +262,7 @@ module Transformer
 
         def self.register
             Syskit::RobyApp::Configuration.include Transformer::ConfigurationExtension
+            Syskit::TaskContext.extend Transformer::TransformerConfigurationAccess
             Roby.app.filter_out_patterns.push(/^#{Regexp.quote(__FILE__)}/)
         end
     end
