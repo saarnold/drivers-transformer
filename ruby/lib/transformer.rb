@@ -285,8 +285,12 @@ module Transformer
             known_transforms = Set.new
             all_transforms = Hash.new { |h, k| h[k] = Set.new }
             additional_producers.each do |(add_from, add_to), producer_name|
-		if !add_from || !add_to || add_from == add_to
-		    raise ArgumentError, "provided additional producer for a transform from #{add_from} onto itself"
+		if !add_from
+		    raise ArgumentError, "explicitly provided #{producer_name} as a transform producer from a nil frame"
+                elsif !add_to
+		    raise ArgumentError, "explicitly provided #{producer_name} as a transform producer to a nil frame"
+                elsif add_from == add_to
+		    raise ArgumentError, "explicitly provided #{producer_name} as a transform producer for #{add_from} onto itself"
 		end
                 trsf = DynamicTransform.new(add_from, add_to, producer_name)
                 all_transforms[trsf.from] << [trsf, false]
