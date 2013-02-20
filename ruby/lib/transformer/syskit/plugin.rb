@@ -34,7 +34,9 @@ module Transformer
                         if port.kind_of?(Orocos::Spec::InputPort) && task.connected?(port.name)
                             port_from = task.selected_frames[transform.from]
                             port_to   = task.selected_frames[transform.to]
-                            self_producers[[port_from, port_to]] = port
+                            if port_from && port_to
+                                self_producers[[port_from, port_to]] = port
+                            end
                         end
                     end
                     # Special case: dynamic_transformations
