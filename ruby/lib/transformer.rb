@@ -246,6 +246,7 @@ module Transformer
         #
         # If multiple arguments are provided, they are joined with File.join
         def load_configuration(*config_file)
+	    Transformer.info "loading configuration file #{File.join(*config_file)}"
             eval_dsl_file(File.join(*config_file), @conf, [], false)
         end
 
@@ -428,6 +429,7 @@ module Transformer
 
         # Load a transformer configuration file
         def load(*conf_file)
+	    Transformer.info "loading configuration file #{File.join(*conf_file)}"
             eval_dsl_file(File.join(*conf_file), self, [], false)
         end
 
