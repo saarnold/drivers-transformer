@@ -183,11 +183,6 @@ module Transformer
         end
 
         def self.instanciation_postprocessing_hook(engine, plan)
-            broadcasters = plan.find_local_tasks(Transformer::Task).not_finished.to_a
-            if broadcasters.empty?
-                plan.add_mission(task = Transformer::Task.instanciate(plan))
-            end
-
             # Transfer the frame mapping information from the instance specification
             # objects to the selected_frames hashes on the tasks
             tasks = plan.find_local_tasks(Syskit::Component).roots(Roby::TaskStructure::Hierarchy)
@@ -227,6 +222,13 @@ module Transformer
         def self.enable
             Roby.app.using_task_library('transformer')
             Syskit.conf.use_deployment('transformer_broadcaster')
+
+            # Maintain a transformer broadcaster on the main engine
+            Roby::ExecutionEngine.add_propagation_handler(lambda do |plan|
+                if plan.find_tasks(Transformer::Task).not_finished.empty?
+                    plan.add_mission(Transformer::Task)
+                end
+            end)
 
             Syskit::NetworkGeneration::Engine.register_instanciation_postprocessing do |engine, plan|
                 if Syskit.conf.transformer_enabled?
