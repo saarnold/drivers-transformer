@@ -249,11 +249,14 @@ bool InverseTransformationElement::getTransformation(const base::Time& atTime, b
     return false;
 };
 
-DynamicTransformationElement::DynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame, aggregator::StreamAligner& aggregator): TransformationElement(sourceFrame, targetFrame), aggregator(aggregator), gotTransform(false) 
+DynamicTransformationElement::DynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame, aggregator::StreamAligner& aggregator, int priority )
+    : TransformationElement(sourceFrame, targetFrame), aggregator(aggregator), gotTransform(false) 
 {
     //giving a buffersize of zero means no buffer limitation at all
     //giving a period of zero means, block until next sample is available
-    streamIdx = aggregator.registerStream<TransformationType>(boost::bind( &transformer::DynamicTransformationElement::aggregatorCallback , this, _1, _2 ), 0, base::Time(), -10, sourceFrame + std::string("2") + targetFrame);
+    streamIdx = aggregator.registerStream<TransformationType>(
+	    boost::bind( &transformer::DynamicTransformationElement::aggregatorCallback , this, _1, _2 ), 
+	    0, base::Time(), priority, sourceFrame + std::string("2") + targetFrame);
 }
 
 DynamicTransformationElement::~DynamicTransformationElement()
@@ -481,7 +484,7 @@ void Transformer::pushDynamicTransformation(const transformer::TransformationTyp
     if(it == transformToStreamIndex.end()) {
 
 	//create a representation of the dynamic transformation
-	DynamicTransformationElement *dynamicElement = new DynamicTransformationElement(tr.sourceFrame, tr.targetFrame, aggregator);
+	DynamicTransformationElement *dynamicElement = new DynamicTransformationElement(tr.sourceFrame, tr.targetFrame, aggregator, priority);
 	
 	int streamIdx = dynamicElement->getStreamIdx();
 	
