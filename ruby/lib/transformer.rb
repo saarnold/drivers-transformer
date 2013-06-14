@@ -477,7 +477,7 @@ module Transformer
         end
 
         # call-seq:
-        #   dynamic_transform "from_frame", "to_frame", producer
+        #   dynamic_transform producer, "from_frame" => "to_frame"
         #
         # Declares a new dynamic transformation. Acceptable values for
         # +producer+ depend on the currently selected checker (i.e. on the
@@ -503,9 +503,9 @@ module Transformer
 	end
 
         # call-seq:
-        #   static_transform "from_frame", "to_frame", translation
-        #   static_transform "from_frame", "to_frame", rotation
-        #   static_transform "from_frame", "to_frame", translation, rotation
+        #   static_transform translation, "from_frame" => "to_frame"
+        #   static_transform rotation, "from_frame" => "to_frame"
+        #   static_transform translation, rotation, "from_frame" => "to_frame"
         #
         # Declares a new static transformation
         def static_transform(*transformation)
