@@ -106,23 +106,33 @@ module Transformer
         # concatenated
         attr_reader :inversions
 
-        # Initializes the object using a leaf TransformNode
+        # Initializes the chain
         #
-        # The object will be initialized by traversing the parents of
-        # +transformation_node+.
-        def initialize(transformation_node)
+        # @overload initialize("frame_name")
+        #   @param [String] initial
+        #   Sets the chain to an identity transformation between the given frame
+        #   name and itself
+        # @overload initialize(node)
+        #   @param [FrameNode] initial
+        #   Initialize the chain by traversing the parents of the initial frame
+        #   node. This initial node is basically treated as the leaf node in a
+        #   chain
+        def initialize(initial)
             @links = Array.new
             @inversions = Array.new
 
-            to = transformation_node.frame
-            cur_node = transformation_node
-            while cur_node.parent
-                @links.unshift(cur_node.link_to_parent)
-                @inversions.unshift(cur_node.inverse)
-                cur_node = cur_node.parent
+            if initial.respond_to?(:to_str)
+                super(initial, initial)
+            else
+                to = initial.frame
+                cur_node = initial
+                while cur_node.parent
+                    @links.unshift(cur_node.link_to_parent)
+                    @inversions.unshift(cur_node.inverse)
+                    cur_node = cur_node.parent
+                end
+                super(cur_node.frame, to)
             end
-
-            super(cur_node.frame, to)
         end
 
         # Returns the set of static transformations and producers needed to
@@ -224,10 +234,11 @@ module Transformer
         # graph search. This is the maximum depth of that search
         attr_reader :max_seek_depth
 
-        def initialize(max_seek_depth = 50, &producer_check)
+        def initialize(conf = Configuration.new, max_seek_depth = 50, &producer_check)
             @max_seek_depth = max_seek_depth;
+            @conf = conf
             @checker = ConfigurationChecker.new(producer_check)
-            @conf = Configuration.new(@checker)
+            conf.checker = @checker
         end
 
         # Loads a configuration file. See the documentation of Transformer for
@@ -235,7 +246,13 @@ module Transformer
         #
         # If multiple arguments are provided, they are joined with File.join
         def load_configuration(*config_file)
-            eval_dsl_file(File.join(*config_file), @conf, [], false)
+	    begin
+		file_name = File.join(*config_file)
+	    rescue TypeError => e
+		raise ArgumentError, "could not create path object from #{config_file}"
+	    end
+	    Transformer.info "loading configuration file #{file_name}"
+            eval_dsl_file(file_name, @conf, [], false)
         end
 
         # Returns the set of transformations in +transforms+ where
@@ -267,11 +284,19 @@ module Transformer
             checker.check_frame(from, conf.frames)
             checker.check_frame(to, conf.frames)
 
+            if from == to
+                return TransformChain.new(from)
+            end
+
             known_transforms = Set.new
             all_transforms = Hash.new { |h, k| h[k] = Set.new }
             additional_producers.each do |(add_from, add_to), producer_name|
-		if !add_from || !add_to || add_from == add_to
-		    raise ArgumentError, "provided additional producer for a transform from #{add_from} onto itself"
+		if !add_from
+		    raise ArgumentError, "explicitly provided #{producer_name} as a transform producer from a nil frame"
+                elsif !add_to
+		    raise ArgumentError, "explicitly provided #{producer_name} as a transform producer to a nil frame"
+                elsif add_from == add_to
+		    raise ArgumentError, "explicitly provided #{producer_name} as a transform producer for #{add_from} onto itself"
 		end
                 trsf = DynamicTransform.new(add_from, add_to, producer_name)
                 all_transforms[trsf.from] << [trsf, false]
@@ -359,7 +384,7 @@ module Transformer
             end
 
             if(frames && !frames.include?(frame))
-                raise InvalidConfiguration, "unknown frame #{frame}"
+                raise InvalidConfiguration, "unknown frame #{frame}, known frames: #{frames.to_a.sort.join(", ")}"
             end
         end
 
@@ -380,6 +405,21 @@ module Transformer
             @checker = checker
         end
 
+        def initialize_copy(old)
+            super
+            merge(old)
+        end
+
+        # Returns true if this transformer configuration and the given one are
+        # compatible, i.e. if #merge would not remove any information
+        def compatible_with?(other)
+            transforms.each do |fromto, tr|
+                next if !other.transforms.has_key?(fromto)
+                return false if other.transforms[fromto] != tr
+            end
+            true
+        end
+
         # Declares frames
         #
         # Frames need to be declared before they are used in the
@@ -394,6 +434,7 @@ module Transformer
 
         # Load a transformer configuration file
         def load(*conf_file)
+	    Transformer.info "loading configuration file #{File.join(*conf_file)}"
             eval_dsl_file(File.join(*conf_file), self, [], false)
         end
 
@@ -406,6 +447,22 @@ module Transformer
         # True if +frame+ is a defined frame
         def has_frame?(frame)
             self.frames.include?(frame.to_s)
+        end
+
+        def empty?
+            transforms.empty?
+        end
+
+        # Adds the information from another Configuration object to self.
+        # In case some definitions are colliding, the information from +conf+ is
+        # used
+        #
+        # @param [Configuration] conf
+        # @return self
+        def merge(conf)
+            transforms.merge!(conf.transforms)
+            @frames |= conf.frames
+            self
         end
 
         def parse_transform_hash(hash, expected_size)
@@ -528,7 +585,7 @@ module Transformer
 
 
         def pretty_print(pp)
-            pp.test "Transformer configuration"
+            pp.text "Transformer configuration"
             pp.nest(2) do
                 pp.breakable
                 pp.text "Available Frames:"

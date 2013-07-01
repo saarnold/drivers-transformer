@@ -193,7 +193,7 @@ class StaticTransformationElement : public TransformationElement {
  * */
 class DynamicTransformationElement : public TransformationElement {
     public:
-	DynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame, aggregator::StreamAligner& aggregator);
+	DynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame, aggregator::StreamAligner& aggregator, int priority = -10);
 	virtual ~DynamicTransformationElement();
 	
 	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& result);
@@ -324,12 +324,19 @@ class Transformer
 	std::map<std::pair<std::string, std::string>, int> transformToStreamIndex;
 	std::vector<Transformation *> transformations;
 	TransformationTree transformationTree;
+	int priority;
 
 	void recomputeAvailableTransformations();
 	
     public:
 	
-	Transformer() {};
+	/** 
+	 * Default constructor for a transformer
+	 *
+	 * @param priority - stream priority which is given to dynamic transform streams.
+	 */
+	Transformer( int priority = -10 ) 
+	    : priority( priority ) {};
 	
 	/**
 	 * Deletes all dynamic and static transformations
