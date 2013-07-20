@@ -105,7 +105,6 @@ module Transformer
                         break
                     end
 
-                    task.should_start_after producer_task.start_event
                     transformations.each do |dyn|
                         task.depends_on(producer_task, :role => "transformer_#{dyn.from}2#{dyn.to}")
 
