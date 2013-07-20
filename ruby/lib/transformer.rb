@@ -23,7 +23,7 @@ module Transformer
         if type.respond_to?(:name)
             type = type.name
         end
-        return type == "/base/samples/RigidBodyState"
+        return type == "/base/samples/RigidBodyState" || type == "/base/samples/RigidBodyState_m"
     end
 
     # A geometric frame, referenced to by name
