@@ -172,5 +172,8 @@ module Transformer
     # Exception raised when a needed frame is not assigned
     class MissingFrame < RuntimeError; end
 
+    # Exception raised when a producer requires itself to function
+    class RecursiveProducer < RuntimeError; end
+
 end
 

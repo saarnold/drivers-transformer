@@ -1,136 +1,164 @@
 module Transformer
     module SyskitPlugin
+        def self.compute_required_transformations(manager, task, options = Hash.new)
+            options = Kernel.validate_options options, :validate_network => true
+            static_transforms  = Hash.new
+            dynamic_transforms = Hash.new { |h, k| h[k] = Array.new }
+
+            tr = task.model.transformer
+            if !tr
+                return static_transforms, dynamic_transforms
+            end
+
+            tr.each_needed_transformation do |trsf|
+                from = task.selected_frames[trsf.from]
+                to   = task.selected_frames[trsf.to]
+                if !from || !to
+                    # This is validated in #validate_generated_network. Just
+                    # ignore here.
+                    #
+                    # We do that so that the :validate_network option to
+                    # Engine#instanciate applies
+                    next
+                end
+                
+                # Register transformation producers that are connected to
+                # some of our transformation input ports
+                self_producers = Hash.new
+                tr.each_transform_port do |port, transform|
+                    if port.kind_of?(Orocos::Spec::InputPort) && task.connected?(port.name)
+                        port_from = task.selected_frames[transform.from]
+                        port_to   = task.selected_frames[transform.to]
+                        if port_from && port_to
+                            self_producers[[port_from, port_to]] = port
+                        end
+                    end
+                end
+                # Special case: dynamic_transformations
+                task.dynamic_transformations_port.each_concrete_connection do |out_port, _|
+                    transform = out_port.produced_transformation
+                    if transform.from && transform.to
+                        self_producers[[transform.from, transform.to]] = out_port.model.orogen_model
+                    end
+                end
+
+                Transformer.debug do
+                    Transformer.debug "looking for chain for #{from} => #{to} in #{task}"
+                    Transformer.debug "  with local producers: #{self_producers}"
+                    break
+                end
+                chain =
+                    begin
+                        manager.transformation_chain(from, to, self_producers)
+                    rescue Exception => e
+                        if options[:validate_network]
+                            raise InvalidChain.new(task, trsf.from, from, trsf.to, to, e),
+                                "cannot find a transformation chain to produce #{from} => #{to} for #{task} (task-local frames: #{trsf.from} => #{trsf.to}): #{e.message}", e.backtrace
+                        else
+                            next
+                        end
+                    end
+                Transformer.log_pp(:debug, chain)
+
+                static, dynamic = chain.partition
+                Transformer.debug do
+                    Transformer.debug "#{static.to_a.size} static transformations"
+                    Transformer.debug "#{dynamic.to_a.size} dynamic transformations"
+                    break
+                end
+
+                static.each do |trsf|
+                    static_transforms[[trsf.from, trsf.to]] = trsf
+                end
+                dynamic.each do |dyn|
+                    # If we find a producer that is an input port, it means
+                    # that the task is already explicitly connected to this
+                    # producer (injected in the self_producers hash above).
+                    # Just ignore it here, we don't need to instanciate it
+                    # ourselves
+                    next if dyn.producer.kind_of?(Orocos::Spec::InputPort)
+                    dynamic_transforms[dyn.producer] << dyn
+                end
+            end
+            return static_transforms, dynamic_transforms
+        end
+
+        def self.instanciate_producer(manager, task, producer_model, transformations)
+            needed_transformations = transformations.find_all do |dyn|
+                role_name = "transformer_#{dyn.from}2#{dyn.to}"
+                !task.find_child_from_role(role_name)
+            end
+            return if needed_transformations.empty?
+
+            producer = producer_model.instanciate(task.plan)
+            producer_task = producer.to_task
+            producer_task.transformer.merge(manager.conf)
+            propagate_local_transformer_configuration(producer_task)
+
+            Transformer.debug do
+                Transformer.debug "instanciated #{producer_task} for #{task}"
+                break
+            end
+
+            transformations.each do |dyn|
+                task.depends_on(producer_task, :role => "transformer_#{dyn.from}2#{dyn.to}")
+
+                out_port = producer.find_port_for_transform(dyn.from, dyn.to)
+                if !out_port
+                    raise TransformationPortNotFound.new(producer_task, dyn.from, dyn.to)
+                end
+                producer.select_port_for_transform(out_port, dyn.from, dyn.to)
+                out_port.connect_to task.dynamic_transformations_port
+            end
+
+            # Manually propagate device information on the new task
+            if producer_task.respond_to?(:each_master_device) && producer_task.model.transformer
+                producer_task.each_master_device do |dev|
+                    device_frames = FramePropagation.
+                        initial_frame_selection_from_device(producer_task, dev)
+                    begin
+                        producer_task.select_frames(device_frames)
+                    rescue FrameSelectionConflict => e
+                        raise e, "#{e.message}: conflict between frame #{e.current_frame} selected for #{e.frame} and frame #{e.new_frame} from device #{dev.name}", e.backtrace
+                    end
+                end
+            end
+            producer_task
+        end
+
         # Adds the transformation producers needed to properly setup the system.
         #
         # @return [Boolean] true if producers have been added to the plan and
         #   false otherwise
-        def self.add_needed_producers(engine, tasks)
-            instanciated_producers = false
+        def self.add_needed_producers(tasks, instanciated_producers, options = Hash.new)
+            options = Kernel.validate_options options, :validate_network => true
+            has_new_producers = false
             tasks.each do |task|
                 tr_config = task.transformer
                 tr_manager = Transformer::TransformationManager.new(tr_config)
 
-                tr = task.model.transformer
                 Transformer.debug { "computing needed static and dynamic transformations for #{task}" }
 
-                static_transforms  = Hash.new
-                dynamic_transforms = Hash.new { |h, k| h[k] = Array.new }
-                tr.each_needed_transformation do |trsf|
-                    from = task.selected_frames[trsf.from]
-                    to   = task.selected_frames[trsf.to]
-                    if !from || !to
-                        # This is validated in #validate_generated_network. Just
-                        # ignore here.
-                        #
-                        # We do that so that the :validate_network option to
-                        # Engine#instanciate applies
-                        next
-                    end
-                    
-                    # Register transformation producers that are connected to
-                    # some of our transformation input ports
-                    self_producers = Hash.new
-                    tr.each_transform_port do |port, transform|
-                        if port.kind_of?(Orocos::Spec::InputPort) && task.connected?(port.name)
-                            port_from = task.selected_frames[transform.from]
-                            port_to   = task.selected_frames[transform.to]
-                            if port_from && port_to
-                                self_producers[[port_from, port_to]] = port
-                            end
-                        end
-                    end
-                    # Special case: dynamic_transformations
-                    task.dynamic_transformations_port.each_concrete_connection do |out_port, _|
-                        transform = out_port.produced_transformation
-                        if transform.from && transform.to
-                            self_producers[[transform.from, transform.to]] = out_port.model.orogen_model
-                        end
-                    end
-
-                    Transformer.debug do
-                        Transformer.debug "looking for chain for #{from} => #{to} in #{task}"
-                        Transformer.debug "  with local producers: #{self_producers}"
-                        break
-                    end
-                    chain =
-                        begin
-                            tr_manager.transformation_chain(from, to, self_producers)
-                        rescue Exception => e
-                            if engine.options[:validate_network]
-                                raise InvalidChain.new(task, trsf.from, from, trsf.to, to, e),
-                                    "cannot find a transformation chain to produce #{from} => #{to} for #{task} (task-local frames: #{trsf.from} => #{trsf.to}): #{e.message}", e.backtrace
-                            else
-                                next
-                            end
-                        end
-                    Transformer.log_pp(:debug, chain)
-
-                    static, dynamic = chain.partition
-                    Transformer.debug do
-                        Transformer.debug "#{static.to_a.size} static transformations"
-                        Transformer.debug "#{dynamic.to_a.size} dynamic transformations"
-                        break
-                    end
-
-                    static.each do |trsf|
-                        static_transforms[[trsf.from, trsf.to]] = trsf
-                    end
-                    dynamic.each do |dyn|
-                        # If we find a producer that is an input port, it means
-                        # that the task is already explicitly connected to this
-                        # producer (injected in the self_producers hash above).
-                        # Just ignore it here, we don't need to instanciate it
-                        # ourselves
-                        next if dyn.producer.kind_of?(Orocos::Spec::InputPort)
-                        dynamic_transforms[dyn.producer] << dyn
-                    end
-                end
-
+                static_transforms, dynamic_transforms = compute_required_transformations(tr_manager, task, :validate_network => options[:validate_network])
                 task.static_transforms = static_transforms.values
                 dynamic_transforms.each do |producer_model, transformations|
-                    needed_transformations = transformations.find_all do |dyn|
-                        role_name = "transformer_#{dyn.from}2#{dyn.to}"
-                        !task.find_child_from_role(role_name)
-                    end
-                    next if needed_transformations.empty?
-
-                    producer = producer_model.instanciate(engine.work_plan)
-                    producer_task = producer.to_task
-                    producer_task.transformer.merge(tr_config)
-                    propagate_local_transformer_configuration(producer_task)
-
-                    instanciated_producers = true
-                    Transformer.debug do
-                        Transformer.debug "instanciated #{producer_task} for #{task}"
-                        break
-                    end
-
-                    transformations.each do |dyn|
-                        task.depends_on(producer_task, :role => "transformer_#{dyn.from}2#{dyn.to}")
-
-                        out_port = producer.find_port_for_transform(dyn.from, dyn.to)
-                        if !out_port
-                            raise TransformationPortNotFound.new(producer_task, dyn.from, dyn.to)
+                    producer_tasks = instanciated_producers[producer_model]
+                    if !producer_tasks.empty?
+                        is_recursive = producer_tasks.any? do |prod_task|
+                            prod_task == task || Roby::TaskStructure::Dependency.reachable?(prod_task, task)
                         end
-                        producer.select_port_for_transform(out_port, dyn.from, dyn.to)
-                        out_port.connect_to task.dynamic_transformations_port
+                        if is_recursive
+                            raise RecursiveProducer, "#{producer_model} requires some transformations (#{transformations.map { |tr| "#{tr.from}=>#{tr.to}" }}) that are produced by itself"
+                        end
                     end
 
-                    # Manually propagate device information on the new task
-                    if producer_task.respond_to?(:each_master_device) && producer_task.model.transformer
-                        producer_task.each_master_device do |dev|
-                            device_frames = FramePropagation.
-                                initial_frame_selection_from_device(producer_task, dev)
-                            begin
-                                producer_task.select_frames(device_frames)
-                            rescue FrameSelectionConflict => e
-                                raise e, "#{e.message}: conflict between frame #{e.current_frame} selected for #{e.frame} and frame #{e.new_frame} from device #{dev.name}", e.backtrace
-                            end
-                        end
+                    if producer_task = instanciate_producer(tr_manager, task, producer_model, transformations)
+                        has_new_producers = true
+                        instanciated_producers[producer_model] << producer_task
                     end
                 end
             end
-            instanciated_producers
+            has_new_producers
         end
 
         def self.update_configuration_state(state, tasks)
@@ -202,6 +230,7 @@ module Transformer
 
         def self.instanciated_network_postprocessing_hook(engine, plan, validate)
             needed = true
+            all_producers = Hash.new { |h, k| h[k] = Array.new }
             while needed
                 FramePropagation.compute_frames(plan)
 
@@ -210,7 +239,7 @@ module Transformer
 
                 # Now find out the frame producers that each task needs, and add them to
                 # the graph
-                needed = add_needed_producers(engine, transformer_tasks)
+                needed = add_needed_producers(transformer_tasks, all_producers, :validate_network => engine.options[:validate_network])
             end
         end
 
