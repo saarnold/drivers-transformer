@@ -22,8 +22,10 @@ module Transformer
             end
 
             def method_missing(m, *args, &block)
-                if m.to_s =~ /_dev$/ || m.to_s =~ /_def$/
+                if m.to_s =~ /_dev$/
                     profile.send(m, *args, &block)
+                elsif m.to_s =~ /(.*)_def$/
+                    profile.resolved_definition($1, *args, &block)
                 else super
                 end
             end

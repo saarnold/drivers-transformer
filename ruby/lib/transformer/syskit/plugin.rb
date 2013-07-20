@@ -97,6 +97,7 @@ module Transformer
                     producer = producer_model.instanciate(engine.work_plan)
                     producer_task = producer.to_task
                     producer_task.transformer.merge(tr_config)
+                    propagate_local_transformer_configuration(producer_task)
 
                     instanciated_producers = true
                     Transformer.debug do
@@ -187,12 +188,16 @@ module Transformer
             # objects to the selected_frames hashes on the tasks
             tasks = plan.find_local_tasks(Syskit::Component).roots(Roby::TaskStructure::Hierarchy)
             tasks.each do |root_task|
-                FramePropagation.initialize_selected_frames(root_task, Hash.new)
-                FramePropagation.initialize_transform_producers(root_task, Transformer::Configuration.new)
-                Roby::TaskStructure::Hierarchy.each_bfs(root_task, BGL::Graph::ALL) do |from, to, info|
-                    FramePropagation.initialize_selected_frames(to, from.selected_frames)
-                    FramePropagation.initialize_transform_producers(to, from.transformer)
-                end
+                propagate_local_transformer_configuration(root_task)
+            end
+        end
+
+        def self.propagate_local_transformer_configuration(root_task)
+            FramePropagation.initialize_selected_frames(root_task, Hash.new)
+            FramePropagation.initialize_transform_producers(root_task, Transformer::Configuration.new)
+            Roby::TaskStructure::Hierarchy.each_bfs(root_task, BGL::Graph::ALL) do |from, to, info|
+                FramePropagation.initialize_selected_frames(to, from.selected_frames)
+                FramePropagation.initialize_transform_producers(to, from.transformer)
             end
         end
 
