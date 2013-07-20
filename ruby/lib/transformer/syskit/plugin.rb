@@ -117,7 +117,7 @@ module Transformer
                     end
 
                     # Manually propagate device information on the new task
-                    if producer_task.model.transformer && producer_task.respond_to?(:each_master_device)
+                    if producer_task.respond_to?(:each_master_device) && producer_task.model.transformer
                         producer_task.each_master_device do |dev|
                             device_frames = FramePropagation.
                                 initial_frame_selection_from_device(producer_task, dev)
