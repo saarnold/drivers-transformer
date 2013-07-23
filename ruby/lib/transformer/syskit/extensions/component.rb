@@ -67,6 +67,36 @@ module Transformer
             nil
         end
 
+        # Yields the ports for which a frame is associated, as well as the frame
+        # name
+        #
+        # @yieldparam [Syskit::Port] the port
+        # @yieldparam [String,nil] the frame name. This is a global name, not a
+        #   task-local one. It is nil if the port is associated to a frame at
+        #   model level, but this frame is not yet assigned
+        def each_annotated_port
+            return enum_for(:each_annotated_port) if !block_given?
+            model.each_annotated_port do |port, frame_name|
+                yield port.bind(self), selected_frames[frame_name]
+            end
+        end
+
+        # Yields the ports for which a transformation is associated, as well as
+        # the frame name
+        #
+        # @yieldparam [Syskit::Port] the port
+        # @yieldparam [Transform] the associated transformation. This uses
+        #   global names, not task-local ones. 'from', 'to' or both can be nil if
+        #   some of the frames are not yet assigned at the task level
+        def each_transform_port
+            return enum_for(:each_transform_port) if !block_given?
+            model.each_transform_port do |port, transform|
+                from = selected_frames[transform.from]
+                to   = selected_frames[transform.to]
+                yield port.bind(self), Transform.new(from, to)
+            end
+        end
+
         # Returns true if one of the task's input port is configured to provide
         # the requested transformation
         def has_transformation_input?(from, to)

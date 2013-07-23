@@ -14,11 +14,22 @@ module Transformer
         # One or both frames might be nil. The return value is nil if no
         # transform is associated at all with this port
         def find_transform_of_port(port)
-            return if !(tr = model.transformer)
-            if associated_transform = tr.find_transform_of_port(port.name)
+            if associated_transform = model.find_transform_of_port(port)
                 from = selected_frames[associated_transform.from]
                 to   = selected_frames[associated_transform.to]
                 Transform.new(from, to)
+            end
+        end
+
+        # Returns the frame in which this port's data is expressed, using global
+        # names, not task-local ones
+        #
+        # @return [String,nil] returns the frame name, or nil if either this
+        #   port is not associated to any frame, or if this frame is not yet
+        #   selected
+        def find_frame_of_port(port)
+            if associated_frame = model.find_frame_of_port(port)
+                return selected_frames[associated_frame]
             end
         end
 
