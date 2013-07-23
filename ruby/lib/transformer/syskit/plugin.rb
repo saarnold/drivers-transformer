@@ -228,18 +228,59 @@ module Transformer
             end
         end
 
+        # Validate that the frame selected for the given task are consistent
+        # with its connections
+        #
+        # It only checks its inputs, as it is meant to iterate over all tasks
+        def self.validate_frame_selection_consistency_through_inputs(task)
+            task.each_annotated_port do |task_port, task_frame|
+                next if !task_port.input? || !task_frame
+                task_port.each_frame_of_connected_ports do |other_port, other_frame|
+                    if other_frame != task_frame
+                        raise FrameSelectionConflict.new(
+                            task,
+                            task.model.find_frame_of_port(task_port),
+                            task_frame,
+                            other_frame)
+                    end
+                end
+            end
+            task.each_transform_port do |task_port, task_transform|
+                next if !task_port.input?
+                task_port.each_transform_of_connected_ports do |other_port, other_transform|
+                    if other_transform.from && task_transform.from && other_transform.from != task_transform.from
+                        task_local_name = task.model.find_transform_of_port(task_port).from
+                        raise FrameSelectionConflict.new(task, task_local_name,
+                                                         task_transform.from, other_transform.from)
+                    elsif other_transform.to && task_transform.to && other_transform.to != task_transform.to
+                        task_local_name = task.model.find_transform_of_port(task_port).to
+                        raise FrameSelectionConflict.new(task, task_local_name,
+                                                         task_transform.to, other_transform.to)
+                    end
+                end
+            end
+        end
+
         def self.instanciated_network_postprocessing_hook(engine, plan, validate)
             needed = true
             all_producers = Hash.new { |h, k| h[k] = Array.new }
             while needed
                 FramePropagation.compute_frames(plan)
-
                 transformer_tasks = plan.find_local_tasks(Syskit::TaskContext).
                     find_all { |task| task.model.transformer }
 
                 # Now find out the frame producers that each task needs, and add them to
                 # the graph
                 needed = add_needed_producers(transformer_tasks, all_producers, :validate_network => engine.options[:validate_network])
+            end
+
+            # We must now validate. The frame propagation algorithm does
+            # some validation, but also tries to do as little work as
+            # possible and therefore will miss some errors
+            transformer_tasks = plan.find_local_tasks(Syskit::TaskContext).
+                find_all { |task| task.model.transformer }
+            transformer_tasks.each do |task|
+                validate_frame_selection_consistency_through_inputs(task)
             end
         end
 
