@@ -37,7 +37,7 @@ module Transformer
                 # Special case: dynamic_transformations
                 task.dynamic_transformations_port.each_concrete_connection do |out_port, _|
                     transform = out_port.produced_transformation
-                    if transform.from && transform.to
+                    if transform && transform.from && transform.to
                         self_producers[[transform.from, transform.to]] = out_port.model.orogen_model
                     end
                 end

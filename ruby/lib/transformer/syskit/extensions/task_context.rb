@@ -49,7 +49,7 @@ module Transformer
 
             port_name = port.name
             if !(tr = model.transformer)
-                tr = model.transformer
+                return
             end
             if !(transform = tr.find_transform_of_port(port_name))
                 transform = tr.transform_output port_name, from => to
