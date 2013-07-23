@@ -446,7 +446,10 @@ module Transformer
                             debug "  #{device_selections}"
                         end
                         new_selections.merge!(device_selections) do |frame, req_sel, dev_sel|
-                            raise FrameSelectionConflict.new(task, frame, req_sel, dev_sel), "mismatch between selected frame #{req_sel} and device frame #{dev_sel} from #{dev.name}"
+                            if req_sel != dev_sel
+                                raise FrameSelectionConflict.new(task, frame, req_sel, dev_sel), "mismatch between selected frame #{req_sel} and device frame #{dev_sel} from #{dev.name}"
+                            end
+                            req_sel
                         end
                     end
                 end
