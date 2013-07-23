@@ -14,13 +14,41 @@ module Transformer
 
         def initialize(task, frame)
             @task, @frame = task, frame
-            @related_ports = Array.new
+            @related_ports = compute_related_ports
+        end
+
+        def compute_related_ports
+            return Array.new if !(trsf = task.model.transformer)
+
+            result = Array.new
+            task.model.each_annotated_port do |port, frame_name|
+                next if frame_name != self.frame
+                port.bind(task).each_frame_of_connected_ports do |other_port, other_frame|
+                    result << [other_port, other_frame]
+                end
+            end
+            task.model.each_transform_port do |port, transform|
+                if self.frame == transform.from
+                    port.bind(task).each_transform_of_connected_ports do |other_port, other_transform|
+                        if other_transform.from
+                            result << [other_port, other_transform.from]
+                        end
+                    end
+                elsif self.frame == transform.to
+                    port.bind(task).each_transform_of_connected_ports do |other_port, other_transform|
+                        if other_transform.to
+                            result << [other_port, other_transform.to]
+                        end
+                    end
+                end
+            end
+            result
         end
 
         def pretty_print_related_ports(pp)
             pp.seplist(related_ports) do |src|
                 task, port_name, info = *src
-                pp.text "#{src[0]}.#{src[1]}: #{info}"
+                pp.text "#{src[0]}: #{src[1]}"
             end
         end
     end

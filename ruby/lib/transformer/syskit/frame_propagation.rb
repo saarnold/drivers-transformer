@@ -266,40 +266,6 @@ module Transformer
             end
         end
 
-        # Computes the set of ports and selected frames that can give an insight
-        # as to the error represented by +e+
-        def refine_invalid_frame_selection(e)
-            related_ports = []
-            tr = e.task.model.transformer
-            tr.each_annotated_port do |port, frame_name|
-                next if !has_information_for_port?(e.task, port.name)
-                if frame_name == e.frame
-                    related_ports << [port.name, :selected_frame]
-                end
-            end
-            tr.each_transform_port do |port, transform|
-                next if !has_information_for_port?(e.task, port.name)
-                if transform.from == e.frame
-                    related_ports << [port.name, :from]
-                end
-                if transform.to == e.frame
-                    related_ports << [port.name, :to]
-                end
-            end
-
-            related_ports.each do |port_name, accessor|
-                info = port_info(e.task, port_name)
-                selected_frame = info.send(accessor)
-
-                e.task.each_concrete_input_connection(port_name) do |source_task, source_port, _|
-                    e.related_ports << [source_task, source_port, selected_frame]
-                end
-                e.task.each_concrete_output_connection(port_name) do |source_port, sink_port, sink_task, _|
-                    e.related_ports << [sink_task, sink_port, selected_frame]
-                end
-            end
-        end
-
         def propagate_task(task)
             return if !(tr = task.model.transformer)
 
@@ -312,31 +278,21 @@ module Transformer
                         raise PortAssociationMismatch.new(task, port.name, 'frame')
                     end
 
-                    begin
-                        debug { "selecting #{info.selected_frame} on #{task} for #{frame} through port #{port.name}" }
-                        task.select_frame(frame, info.selected_frame)
-                    rescue InvalidFrameSelection => e
-                        refine_invalid_frame_selection(e)
-                        raise e, e.message, e.backtrace
-                    end
+                    debug { "selecting #{info.selected_frame} on #{task} for #{frame} through port #{port.name}" }
+                    task.select_frame(frame, info.selected_frame)
                 end
             end
             tr.each_transform_port do |port, transform|
                 next if !has_information_for_port?(task, port.name)
                 info = port_info(task, port.name)
 
-                begin
-                    if info.from
-                        debug { "selecting #{info.from} on #{task} for #{transform.from} through the source frame of port #{port.name}" }
-                        task.select_frame(transform.from, info.from)
-                    end
-                    if info.to
-                        debug { "selecting #{info.to} on #{task} for #{transform.to} through the source frame of port #{port.name}" }
-                        task.select_frame(transform.to, info.to)
-                    end
-                rescue InvalidFrameSelection => e
-                    refine_invalid_frame_selection(e)
-                    raise e, e.message, e.backtrace
+                if info.from
+                    debug { "selecting #{info.from} on #{task} for #{transform.from} through the source frame of port #{port.name}" }
+                    task.select_frame(transform.from, info.from)
+                end
+                if info.to
+                    debug { "selecting #{info.to} on #{task} for #{transform.to} through the source frame of port #{port.name}" }
+                    task.select_frame(transform.to, info.to)
                 end
             end
 
