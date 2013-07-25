@@ -333,6 +333,7 @@ module Transformer
 
             Syskit::Robot::DeviceInstance.include Transformer::DeviceExtension
             Syskit::Graphviz.include Transformer::GraphvizExtension
+            Syskit::Graphviz.available_task_annotations << 'transforms'
             Syskit::InstanceRequirements.include Transformer::InstanceRequirementsExtension
             Syskit::NetworkGeneration::Engine.include Transformer::EngineExtension
             Syskit::Actions::Profile.include Transformer::ProfileExtension
