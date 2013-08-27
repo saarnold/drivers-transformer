@@ -76,7 +76,7 @@ module Transformer
                     # producer (injected in the self_producers hash above).
                     # Just ignore it here, we don't need to instanciate it
                     # ourselves
-                    next if dyn.producer.kind_of?(Orocos::Spec::InputPort)
+                    next if dyn.producer.kind_of?(Orocos::Spec::Port)
                     dynamic_transforms[dyn.producer] << dyn
                 end
             end
