@@ -246,13 +246,7 @@ module Transformer
         #
         # If multiple arguments are provided, they are joined with File.join
         def load_configuration(*config_file)
-	    begin
-		file_name = File.join(*config_file)
-	    rescue TypeError => e
-		raise ArgumentError, "could not create path object from #{config_file}"
-	    end
-	    Transformer.info "loading configuration file #{file_name}"
-            eval_dsl_file(file_name, @conf, [], false)
+            conf.load(*config_file)
         end
 
         # Returns the set of transformations in +transforms+ where
@@ -434,6 +428,11 @@ module Transformer
 
         # Load a transformer configuration file
         def load(*conf_file)
+	    begin
+		file_name = File.join(*conf_file)
+	    rescue TypeError => e
+		raise ArgumentError, "could not create path object from #{conf_file}"
+	    end
 	    Transformer.info "loading configuration file #{File.join(*conf_file)}"
             eval_dsl_file(File.join(*conf_file), self, [], false)
         end
