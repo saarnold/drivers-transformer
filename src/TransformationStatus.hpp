@@ -1,6 +1,9 @@
 #ifndef TRANSFORMER_TRANSFORMER_STATUS_HPP
 #define TRANSFORMER_TRANSFORMER_STATUS_HPP
 
+#include <string>
+#include <base/Time.hpp>
+
 namespace transformer
 {
     /** Structure used in the TransformerStatus structure to report information
