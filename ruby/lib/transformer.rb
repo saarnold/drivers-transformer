@@ -309,7 +309,7 @@ module Transformer
             possible_next_nodes, next_level = Array.new, Array.new
             possible_next_nodes.push(TransformNode.new(from, nil, nil, false))
 
-            max_depth = [@max_seek_depth, known_transforms.size / 2].min
+            max_depth = [@max_seek_depth, known_transforms.size * 2 + 1].min
             max_depth.times do
                 # Iterate over the possible next nodes, and add them to all
                 # existing chains
