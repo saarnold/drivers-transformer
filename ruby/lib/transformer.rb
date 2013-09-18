@@ -336,7 +336,7 @@ module Transformer
                 possible_next_nodes, next_level = next_level, possible_next_nodes
                 next_level.clear
             end
-            raise ArgumentError, "max seek depth reached seeking Transform from '#{from}' to '#{to}'"
+            raise TransformationNotFound.new(from, to), "max seek depth reached seeking Transform from '#{from}' to '#{to}'"
         end
     end
 
