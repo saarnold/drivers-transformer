@@ -4,6 +4,12 @@ module Transformer
         attribute(:selected_frames) { Hash.new }
         attribute(:transformer) { Transformer::Configuration.new }
 
+        def find_transform_of_port(port)
+        end
+
+        def find_frame_of_port(port)
+        end
+
         def can_merge?(other)
             if !(result = super)
                 return result
