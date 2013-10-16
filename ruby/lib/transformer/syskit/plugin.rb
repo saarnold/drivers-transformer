@@ -299,9 +299,11 @@ module Transformer
 
             # Maintain a transformer broadcaster on the main engine
             Roby::ExecutionEngine.add_propagation_handler(lambda do |plan|
-                if !plan.engine.quitting? && plan.find_tasks(Transformer::Task).not_finished.empty?
-                    plan.add_mission(Transformer::Task)
-                end
+		if Syskit.conf.transformer_broadcaster_enabled?
+		    if !plan.engine.quitting? && plan.find_tasks(Transformer::Task).not_finished.empty?
+			plan.add_mission(Transformer::Task)
+		    end
+		end
             end)
 
             Syskit::NetworkGeneration::Engine.register_instanciation_postprocessing do |engine, plan|
