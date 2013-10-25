@@ -41,7 +41,7 @@ void Transformation::setTransformationChain(const std::vector< TransformationEle
 	for(std::vector< TransformationElement* >::iterator it = transformationChain.begin();
 	it != transformationChain.end(); it++)
 	{
-	    (*it)->setTransformationChangedCallback(transformationChangedCallback);
+	    (*it)->addTransformationChangedCallback(transformationChangedCallback);
 	}
     }
 }
@@ -55,7 +55,7 @@ void Transformation::registerUpdateCallback(boost::function<void (const base::Ti
 	for(std::vector< TransformationElement* >::iterator it = transformationChain.begin();
 	it != transformationChain.end(); it++)
 	{
-	    (*it)->setTransformationChangedCallback(transformationChangedCallback);
+	    (*it)->addTransformationChangedCallback(transformationChangedCallback);
 	}
     }
 }
@@ -269,9 +269,10 @@ void DynamicTransformationElement::aggregatorCallback(const base::Time& ts, cons
     gotTransform = true;
     lastTransform = value;
     lastTransformTime = ts;
-    if(!elementChangedCallback.empty())
+    for(std::vector<boost::function<void (const base::Time &ts)> >::const_iterator it = elementChangedCallbacks.begin();
+    it != elementChangedCallbacks.end(); it++)
     {
-	elementChangedCallback(ts);
+	(*it)(ts);
     }
 }
 
