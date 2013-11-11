@@ -293,9 +293,18 @@ module Transformer
             plan.transformer_configuration_state[0] = Time.now
         end
 
+        module RobyAppPlugin
+            def self.setup(app)
+                Roby.app.using_task_library('transformer')
+            end
+
+            def self.require_config(app)
+                Syskit.conf.use_deployment('transformer_broadcaster')
+            end
+        end
+
         def self.enable
-            Roby.app.using_task_library('transformer')
-            Syskit.conf.use_deployment('transformer_broadcaster')
+            Roby.app.add_plugin 'syskit-transformer', RobyAppPlugin
 
             # Maintain a transformer broadcaster on the main engine
             Roby::ExecutionEngine.add_propagation_handler(lambda do |plan|
