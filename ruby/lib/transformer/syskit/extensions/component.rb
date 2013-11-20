@@ -10,6 +10,9 @@ module Transformer
         def find_frame_of_port(port)
         end
 
+        def find_port_for_transform(from, to)
+        end
+
         def can_merge?(other)
             if !(result = super)
                 return result
