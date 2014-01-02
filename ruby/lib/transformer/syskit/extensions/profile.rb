@@ -6,7 +6,7 @@ module Transformer
         # This is a normal transformer configuration with only a few added
         # tweaks
         class Configuration < Transformer::Configuration
-            attr_reader :profile
+            attr_accessor :profile
             def initialize(profile)
                 @profile = profile
                 super()
@@ -32,11 +32,41 @@ module Transformer
         end
 
         def transformer
-            @transformer ||= Configuration.new(self)
+            if !@transformer
+                @transformer = Configuration.new(self)
+                all_used_profiles.each do |profile, tags|
+                    if profile.has_transformer?
+                        use_profile_transformer(profile, tags)
+                    end
+                end
+            end
             if block_given?
                 @transformer.instance_eval(&proc)
             end
             @transformer
+        end
+
+        def has_transformer?
+            !!@transformer
+        end
+
+        def use_profile_transformer(profile, tags = Hash.new)
+            tr = profile.transformer.dup
+            tr.each_dynamic_transform do |dyn|
+                dyn.producer = promote_requirements(profile, dyn.producer, tags)
+            end
+            tr.profile = self
+            if has_transformer?
+                tr.merge(@transformer)
+            end
+            @transformer = tr
+        end
+
+        def use_profile(profile, tags = Hash.new)
+            super if defined? super
+            if profile.has_transformer?
+                use_profile_transformer(profile, tags)
+            end
         end
 
         # Called by Profile to modify an instance requirement object w.r.t. the
