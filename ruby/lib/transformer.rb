@@ -1,4 +1,5 @@
 require 'utilrb/kernel/load_dsl_file'
+require 'utilrb/hash/map_value'
 require 'eigen'
 require 'set'
 require 'utilrb/logger'
@@ -71,6 +72,12 @@ module Transformer
             @translation, @rotation = translation, rotation
         end
 
+        def initialize_copy(old)
+            super
+            @translation = old.translation.dup
+            @rotation = old.rotation.dup
+        end
+
         def pretty_print(pp)
             super
             pp.text ": static"
@@ -81,11 +88,16 @@ module Transformer
     #
     # The producer object must respond to #inverse
     class DynamicTransform < Transform
-        attr_reader :producer
+        attr_accessor :producer
 
         def initialize(from, to, producer)
             super(from, to)
             @producer = producer
+        end
+
+        def initialize_copy(old)
+            super
+            @producer = old.producer.dup
         end
         
         def pretty_print(pp)
@@ -400,7 +412,9 @@ module Transformer
         end
 
         def initialize_copy(old)
-            super
+            @checker = old.checker
+            @transforms = Hash.new
+            @frames = Set.new
             merge(old)
         end
 
@@ -459,9 +473,17 @@ module Transformer
         # @param [Configuration] conf
         # @return self
         def merge(conf)
-            transforms.merge!(conf.transforms)
+            new_transforms = conf.transforms.map_value do |_, v|
+                v.dup
+            end
+            transforms.merge!(new_transforms)
             @frames |= conf.frames
             self
+        end
+
+        def clear
+            transforms.clear
+            frames.clear
         end
 
         def parse_transform_hash(hash, expected_size)
