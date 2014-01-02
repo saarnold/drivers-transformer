@@ -275,16 +275,18 @@ module Transformer
 
                 # Now find out the frame producers that each task needs, and add them to
                 # the graph
-                needed = add_needed_producers(transformer_tasks, all_producers, :validate_network => engine.options[:validate_network])
+                needed = add_needed_producers(transformer_tasks, all_producers, :validate_network => engine.options[:validate_abstract_network])
             end
 
             # We must now validate. The frame propagation algorithm does
             # some validation, but also tries to do as little work as
             # possible and therefore will miss some errors
-            transformer_tasks = plan.find_local_tasks(Syskit::TaskContext).
-                find_all { |task| task.model.transformer }
-            transformer_tasks.each do |task|
-                validate_frame_selection_consistency_through_inputs(task)
+            if engine.options[:validate_abstract_network]
+                transformer_tasks = plan.find_local_tasks(Syskit::TaskContext).
+                    find_all { |task| task.model.transformer }
+                transformer_tasks.each do |task|
+                    validate_frame_selection_consistency_through_inputs(task)
+                end
             end
         end
 
