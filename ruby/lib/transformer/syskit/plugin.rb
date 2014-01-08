@@ -105,7 +105,11 @@ module Transformer
 
                 out_port = producer.find_port_for_transform(dyn.from, dyn.to)
                 if !out_port
-                    raise TransformationPortNotFound.new(producer_task, dyn.from, dyn.to)
+                    if out_port = producer_task.find_port_for_transform(dyn.from, dyn.to)
+                        producer = producer_task
+                    else
+                        raise TransformationPortNotFound.new(producer_task, dyn.from, dyn.to)
+                    end
                 end
                 producer.select_port_for_transform(out_port, dyn.from, dyn.to)
                 out_port.connect_to task.dynamic_transformations_port
