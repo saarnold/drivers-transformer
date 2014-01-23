@@ -105,7 +105,11 @@ module Transformer
 
                 out_port = producer.find_port_for_transform(dyn.from, dyn.to)
                 if !out_port
-                    raise TransformationPortNotFound.new(producer_task, dyn.from, dyn.to)
+                    if out_port = producer_task.find_port_for_transform(dyn.from, dyn.to)
+                        producer = producer_task
+                    else
+                        raise TransformationPortNotFound.new(producer_task, dyn.from, dyn.to)
+                    end
                 end
                 producer.select_port_for_transform(out_port, dyn.from, dyn.to)
                 out_port.connect_to task.dynamic_transformations_port
@@ -308,9 +312,11 @@ module Transformer
 
             # Maintain a transformer broadcaster on the main engine
             Roby::ExecutionEngine.add_propagation_handler(lambda do |plan|
-                if !plan.engine.quitting? && plan.find_tasks(Transformer::Task).not_finished.empty?
-                    plan.add_mission(Transformer::Task)
-                end
+		if Syskit.conf.transformer_broadcaster_enabled?
+		    if !plan.engine.quitting? && plan.find_tasks(Transformer::Task).not_finished.empty?
+			plan.add_mission(Transformer::Task)
+		    end
+		end
             end)
 
             Syskit::NetworkGeneration::Engine.register_instanciation_postprocessing do |engine, plan|
