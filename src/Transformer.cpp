@@ -364,7 +364,7 @@ bool Transformation::get(const base::Time &time, TransformationType& tr, bool do
     tr.targetFrame = targetFrame;
     tr.time = time;
 
-    Eigen::Affine3d fullTransformation;
+    base::samples::RigidBodyState fullTransformation;
     bool ret = get(time, fullTransformation, doInterpolation);
     if(!ret)
 	return false;
