@@ -244,6 +244,7 @@ bool InverseTransformationElement::getTransformation(const base::Time& atTime, b
 	tr2 = tr;
 	tr2 = tr2.inverse();
 	tr.setTransform(tr2);
+    std::swap(tr.sourceFrame, tr.targetFrame);
 	return true;
     }
     return false;
