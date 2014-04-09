@@ -180,6 +180,7 @@ class StaticTransformationElement : public TransformationElement {
 	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& tr)
 	{
 	    tr = staticTransform;
+        tr.time = atTime;
 	    return true;
 	};
     private:
