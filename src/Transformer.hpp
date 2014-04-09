@@ -228,7 +228,7 @@ class InverseTransformationElement : public TransformationElement {
 	InverseTransformationElement(TransformationElement *source): TransformationElement(source->getTargetFrame(), source->getSourceFrame()), nonInverseElement(source) {};
 	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& tr);
 
-	virtual void setTransformationChangedCallback(boost::function<void (const base::Time &ts)> callback) 
+	virtual void addTransformationChangedCallback(boost::function<void (const base::Time &ts)> callback) 
 	{
 	    nonInverseElement->addTransformationChangedCallback(callback);
 	};
