@@ -149,6 +149,11 @@ class TransformationElement {
 	 * */
 	virtual void addTransformationChangedCallback(boost::function<void (const base::Time &ts)> callback) {};
 	
+        /**
+         * Removes all registered callbacks
+         * */
+        virtual void clearTransformationChangedCallbacks() {};
+        
 	/**
 	 * returns the name of the source frame
 	 * */
@@ -203,6 +208,11 @@ class DynamicTransformationElement : public TransformationElement {
 	    elementChangedCallbacks.push_back(callback);
 	};
 	
+        virtual void clearTransformationChangedCallbacks()
+        {
+            elementChangedCallbacks.clear();
+        }
+        
 	int getStreamIdx() const
 	{
 	    return streamIdx;
@@ -276,6 +286,14 @@ class TransformationTree
 	 * */
 	bool getTransformationChain(std::string from, std::string to, std::vector<TransformationElement *> &result);
 	
+        /**
+         * Returns a vector of all currently registered transformation elements.
+         * */
+        std::vector<TransformationElement *> &getAvailableElements()
+        {
+            return availableElements;
+        }
+        
 	/**
 	 * Destructor, deletes all TransformationElements saved in availableElements
 	 * */

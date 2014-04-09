@@ -459,6 +459,13 @@ void Transformer::unregisterTransformation(Transformation* transformation)
 
 void Transformer::recomputeAvailableTransformations()
 {
+    std::vector<TransformationElement *> &elements(transformationTree.getAvailableElements());
+    //clear all currenty registered callbacks
+    for(std::vector<TransformationElement *>::iterator element = elements.begin(); element != elements.end(); element++)
+    {
+        (*element)->clearTransformationChangedCallbacks();
+    }
+    
     //seek through all available data streams and update transformation chains
     for(std::vector<Transformation *>::iterator transform = transformations.begin(); transform != transformations.end(); transform++)
     {
