@@ -41,7 +41,19 @@ void Transformation::setTransformationChain(const std::vector< TransformationEle
 	for(std::vector< TransformationElement* >::iterator it = transformationChain.begin();
 	it != transformationChain.end(); it++)
 	{
-	    (*it)->addTransformationChangedCallback(transformationChangedCallback);
+            StaticTransformationElement *staticElem = dynamic_cast<StaticTransformationElement *>(*it);;
+            InverseTransformationElement *invElem = dynamic_cast<InverseTransformationElement *>(*it);
+            if(invElem)
+            {
+                staticElem = dynamic_cast<StaticTransformationElement *>(invElem->getElement());
+            }
+            if(staticElem)
+            {
+                //call the callback, as the transformation will never 'change' again 
+                transformationChangedCallback(base::Time());
+            }
+            else
+                (*it)->addTransformationChangedCallback(transformationChangedCallback);
 	}
     }
 }
@@ -244,7 +256,7 @@ bool InverseTransformationElement::getTransformation(const base::Time& atTime, b
 	tr2 = tr;
 	tr2 = tr2.inverse();
 	tr.setTransform(tr2);
-    std::swap(tr.sourceFrame, tr.targetFrame);
+        std::swap(tr.sourceFrame, tr.targetFrame);
 	return true;
     }
     return false;

@@ -147,12 +147,18 @@ class TransformationElement {
 	 * This function registers a callback, that should be called every
 	 * time the TransformationElement changes its value. 
 	 * */
-	virtual void addTransformationChangedCallback(boost::function<void (const base::Time &ts)> callback) {};
-	
+        virtual void addTransformationChangedCallback(boost::function<void (const base::Time &ts)> callback)
+        {
+            elementChangedCallbacks.push_back(callback);
+        };
+        
         /**
          * Removes all registered callbacks
          * */
-        virtual void clearTransformationChangedCallbacks() {};
+        virtual void clearTransformationChangedCallbacks()
+        {
+            elementChangedCallbacks.clear();
+        }
         
 	/**
 	 * returns the name of the source frame
@@ -170,6 +176,8 @@ class TransformationElement {
 	    return targetFrame;
 	}
 
+    protected:
+        std::vector<boost::function<void (const base::Time &ts)> > elementChangedCallbacks;
     private:
 	std::string sourceFrame;
 	std::string targetFrame;
@@ -185,7 +193,7 @@ class StaticTransformationElement : public TransformationElement {
 	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& tr)
 	{
 	    tr = staticTransform;
-        tr.time = atTime;
+            tr.time = atTime;
 	    return true;
 	};
     private:
@@ -203,16 +211,6 @@ class DynamicTransformationElement : public TransformationElement {
 	virtual ~DynamicTransformationElement();
 	
 	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& result);
-
-	virtual void addTransformationChangedCallback(boost::function<void (const base::Time &ts)> callback)
-	{
-	    elementChangedCallbacks.push_back(callback);
-	};
-	
-        virtual void clearTransformationChangedCallbacks()
-        {
-            elementChangedCallbacks.clear();
-        }
         
 	int getStreamIdx() const
 	{
@@ -222,7 +220,6 @@ class DynamicTransformationElement : public TransformationElement {
     private:
 	
 	void aggregatorCallback(const base::Time &ts, const TransformationType &value); 
-        std::vector<boost::function<void (const base::Time &ts)> > elementChangedCallbacks;
 
 	aggregator::StreamAligner &aggregator;
 	base::Time lastTransformTime;
