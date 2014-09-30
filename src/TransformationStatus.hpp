@@ -34,7 +34,7 @@ namespace transformer
         /** The number of chain elements that are used to generate this
          * transformation. 0 if no chain could be found so far.
          */
-        int chain_length;
+        uint32_t chain_length;
         /** The number of transformations that have successfully been generated
          * so far
          */
