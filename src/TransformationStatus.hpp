@@ -61,6 +61,16 @@ namespace transformer
             , failed_no_sample(0)
             , failed_interpolation_impossible(0) {}
     };
+    
+    /** 
+     * Report of status for all transformations registered
+     * in the transformer
+     */
+    struct TransformerStatus
+    {
+        base::Time time;
+        std::vector<transformer::TransformationStatus> transformations;
+    };
 }
 
 #endif
