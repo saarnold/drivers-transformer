@@ -8,7 +8,7 @@
 #include <map>
 #include <boost/bind.hpp>
 #include <base/samples/rigid_body_state.h>
-#include <transformer/TransformationStatus.hpp>
+#include "TransformationStatus.hpp"
 
 namespace transformer {
  
@@ -341,6 +341,7 @@ class Transformer
 	std::vector<Transformation *> transformations;
 	TransformationTree transformationTree;
 	int priority;
+        TransformerStatus transformerStatus;
 
 	void recomputeAvailableTransformations();
 	
@@ -511,6 +512,11 @@ class Transformer
 	{
 	    return aggregator.getStatus();
 	}
+	
+        /** 
+         * @return the status of the transformer
+         */
+        const TransformerStatus& getTransformerStatus();
 	
 	/**
 	 * Destructor, deletes the TransformationMakers

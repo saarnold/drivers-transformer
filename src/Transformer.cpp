@@ -556,6 +556,21 @@ void Transformer::addTransformationChain(std::string from, std::string to, const
     }
 }
 
+const TransformerStatus& Transformer::getTransformerStatus()
+{
+    transformerStatus.transformations.resize(transformations.size());
+    size_t i = 0;
+    for(std::vector<Transformation *>::const_iterator it = transformations.begin(); 
+        it != transformations.end(); it++)
+    {
+        (*it)->updateStatus(transformerStatus.transformations[i]);
+        i++;
+    }
+    transformerStatus.time = base::Time::now();
+    return transformerStatus;
+}
+
+
 void Transformer::clear()
 {
     //clear all known transformation chains
