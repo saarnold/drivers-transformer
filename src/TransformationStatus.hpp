@@ -2,6 +2,7 @@
 #define TRANSFORMER_TRANSFORMER_STATUS_HPP
 
 #include <string>
+#include <vector>
 #include <base/Time.hpp>
 
 namespace transformer
