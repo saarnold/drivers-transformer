@@ -585,6 +585,9 @@ void Transformer::clear()
     //clear transformation tree
     transformationTree.clear();
     
+    transformerStatus.time = base::Time();
+    transformerStatus.transformations.clear();
+    
     //clear data samples in the aggregator
     aggregator.clear();
 }
