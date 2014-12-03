@@ -382,7 +382,15 @@ class Transformer
 	 * transformer.
 	 * */
 	Transformation &registerTransformation(std::string sourceFrame, std::string targetFrame);
-	
+
+        /**
+         * Returns a vector of the registered transformations.
+         * */
+        const std::vector<Transformation *> &getRegisteredTransformations()
+        {
+            return transformations;
+        }
+
         /**
          * Unregisteres a transformation from the transfromation stack.
          * 
@@ -502,7 +510,6 @@ class Transformer
 
 	
 	void setFrameMapping(const std::string &frameName, const std::string &newName);
-	
 
 	/** 
 	 * @return the status of the StreamAligner, which contains current latency
