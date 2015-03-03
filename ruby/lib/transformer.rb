@@ -592,12 +592,18 @@ module Transformer
             result
         end
 
+        # Enumerates the static transformations
+        #
+        # @yieldparam [StaticTransform] trsf
         def each_static_transform
             transforms.each_value do |val|
                 yield(val) if val.kind_of?(StaticTransform)
             end
         end
 
+        # Enumerates the dynamic transformations
+        #
+        # @yieldparam [DynamicTransform] trsf
         def each_dynamic_transform
             transforms.each_value do |val|
                 yield(val) if val.kind_of?(DynamicTransform)
