@@ -14,8 +14,7 @@ if ENV['TEST_ENABLE_COVERAGE'] == '1'
 end
 
 require 'transformer'
-## Uncomment this to enable flexmock
-# require 'flexmock/test_unit'
+require 'flexmock/test_unit'
 require 'minitest/spec'
 
 if ENV['TEST_ENABLE_PRY'] != '0'
