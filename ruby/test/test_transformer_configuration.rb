@@ -1,9 +1,6 @@
-$LOAD_PATH.unshift(File.expand_path(File.join('..', 'lib'), File.dirname(__FILE__)))
-require 'transformer'
-require 'test/unit'
-require 'eigen'
+require 'transformer/test'
 
-class TC_TransformerConfiguration < Test::Unit::TestCase
+class TC_TransformerConfiguration < Minitest::Test
     attr_reader :conf
 
     def setup
@@ -23,9 +20,9 @@ class TC_TransformerConfiguration < Test::Unit::TestCase
         trans_id = Eigen::Vector3.new(0, 0, 0)
         rot   = Eigen::Quaternion.new(0, 1, 0, 0)
         rot_id = Eigen::Quaternion.Identity
-        conf.static_transform "from", "to1", trans
-        conf.static_transform "from", "to2", rot
-        conf.static_transform "from", "to3", trans, rot
+        conf.static_transform trans, 'from' => 'to1'
+        conf.static_transform rot, 'from' => 'to2'
+        conf.static_transform trans, rot, 'from' => 'to3'
 
         assert conf.has_transformation?("from", "to1")
         assert conf.has_transformation?("from", "to2")
@@ -44,15 +41,14 @@ class TC_TransformerConfiguration < Test::Unit::TestCase
         assert(trsf.rotation.approx?(rot, 0.001))
     end
 
-    def test_rejects_duplicate_static_transforms
+    def test_it_updates_existing_transformations
         conf.frames "from", "to"
 
-        conf.static_transform "from", "to", Eigen::Vector3.new(0, 0, 0)
-        assert_raises(ArgumentError) do
-            conf.static_transform "from", "to", Eigen::Vector3.new(0, 0, 0)
-        end
+        conf.static_transform Eigen::Vector3.new(0, 0, 0), 'from' => 'to'
+        conf.static_transform Eigen::Vector3.new(1, 0, 0), 'from' => 'to'
         assert conf.has_transformation?("from", "to")
-            
+
+        assert conf.transformation_for('from', 'to').translation.approx?(Eigen::Vector3.new(1, 0, 0))
     end
 
     def test_rejects_wrong_static_transform_definition
@@ -60,24 +56,16 @@ class TC_TransformerConfiguration < Test::Unit::TestCase
 
         assert_raises(ArgumentError) do
             # No transformation provided
-            conf.static_transform "from", "to"
+            conf.static_transform "from" => "to"
         end
         assert_raises(ArgumentError) do
-            # Invalid source frame
-            conf.static_transform "invalid", "to", Eigen::Vector3.new(0, 0, 0)
+            conf.static_transform 10, 'from' => 'to'
         end
         assert_raises(ArgumentError) do
-            # Invalid target frame
-            conf.static_transform "from", "invalid", Eigen::Vector3.new(0, 0, 0)
+            conf.static_transform 10, Eigen::Vector3.new(0, 0, 0), 'from' => 'to'
         end
         assert_raises(ArgumentError) do
-            conf.static_transform "from", "to", 10
-        end
-        assert_raises(ArgumentError) do
-            conf.static_transform "from", "to", 10, Eigen::Vector3.new(0, 0, 0)
-        end
-        assert_raises(ArgumentError) do
-            conf.static_transform "from", "to", Eigen::Vector3.new(0, 0, 0), Eigen::Quaternion.Identity, 10
+            conf.static_transform Eigen::Vector3.new(0, 0, 0), Eigen::Quaternion.Identity, 10, 'from' => 'to'
         end
         assert !conf.has_transformation?("from", "to")
     end
@@ -85,9 +73,9 @@ class TC_TransformerConfiguration < Test::Unit::TestCase
     def test_dynamic_transform_definition
         conf.frames "from", "to1", "to2", "to3"
 
-        conf.dynamic_transform "from", "to1", "producer1"
-        conf.dynamic_transform "from", "to2", "producer2"
-        conf.dynamic_transform "from", "to3", "producer3"
+        conf.dynamic_transform "producer1", 'from' => 'to1'
+        conf.dynamic_transform "producer2", 'from' => 'to2'
+        conf.dynamic_transform "producer3", 'from' => 'to3'
 
         assert conf.has_transformation?("from", "to1")
         assert conf.has_transformation?("from", "to2")
@@ -110,20 +98,18 @@ class TC_TransformerConfiguration < Test::Unit::TestCase
         end
         conf.checker = Transformer::ConfigurationChecker.new(checker)
 
-        conf.dynamic_transform "from", "to1", "producer1"
+        conf.dynamic_transform "producer1", 'from' => 'to1'
         assert_raises(ArgumentError) { conf.dynamic_transform("from", "to2", 10) }
         assert(conf.has_transformation?('from', 'to1'))
         assert(!conf.has_transformation?('from', 'to2'))
     end
 
-    def test_rejects_duplicate_dynamic_transforms
+    def test_it_updates_dynamic_transformations
         conf.frames "from", "to"
 
-        conf.dynamic_transform "from", "to", Eigen::Vector3.new(0, 0, 0)
-        assert_raises(ArgumentError) do
-            conf.dynamic_transform "from", "to", Eigen::Vector3.new(0, 0, 0)
-        end
-        assert conf.has_transformation?("from", "to")
+        conf.dynamic_transform 'producer1', 'from' => 'to'
+        conf.dynamic_transform 'producer2', 'from' => 'to'
+        assert_equal 'producer2', conf.transformation_for('from', 'to').producer
     end
 end
 

@@ -1,10 +1,6 @@
-$LOAD_PATH.unshift(File.expand_path(File.join('..', 'lib'), File.dirname(__FILE__)))
-require 'transformer'
-require 'test/unit'
-require 'eigen'
-require 'pp'
+require 'transformer/test'
 
-class TC_Transformer < Test::Unit::TestCase
+class TC_Transformer < Minitest::Test
     attr_reader :trsf, :transforms
     def conf; trsf.conf end
 

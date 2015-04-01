@@ -1,10 +1,10 @@
-require 'syskit/test'
+require 'syskit/test/self'
 require 'transformer/syskit'
 
 module Transformer
     module SyskitPlugin
         module SelfTest
-            include Syskit::SelfTest
+            include Syskit::Test::Self
 
             def setup
                 super
@@ -12,6 +12,8 @@ module Transformer
                 Syskit.conf.transformer_enabled = true
             end
         end
+        Minitest::Test.include SelfTest
     end
 end
+
 

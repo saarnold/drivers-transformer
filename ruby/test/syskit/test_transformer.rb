@@ -1,4 +1,3 @@
-require 'syskit/test'
 require 'transformer/syskit/test'
 
 describe Transformer do
