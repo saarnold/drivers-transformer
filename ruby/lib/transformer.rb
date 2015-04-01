@@ -385,10 +385,6 @@ module Transformer
 
         def check_frame(frame, frames = nil)
             frame = frame.to_s
-            if frame !~ /^\w+$/
-                raise InvalidConfiguration, "frame names can only contain alphanumeric characters and _, got #{frame}"
-            end
-
             if(frames && !frames.include?(frame))
                 raise InvalidConfiguration, "unknown frame #{frame}, known frames: #{frames.to_a.sort.join(", ")}"
             end
