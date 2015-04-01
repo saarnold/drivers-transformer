@@ -531,6 +531,12 @@ module Transformer
         # Declares a new static transformation
         def static_transform(*transformation)
             from, to = parse_single_transform(transformation.pop)
+            if !from || from.empty?
+                raise ArgumentError, "nil or empty frame given for 'from'"
+            end
+            if !to || to.empty?
+                raise ArgumentError, "nil or empty frame given for 'from'"
+            end
             frames(from, to)
 
             if transformation.empty?
@@ -582,9 +588,9 @@ module Transformer
             result = transforms[[from, to]]
             if !result
                 if !has_frame?(from)
-                    raise ArgumentError, "#{from} is not a registered frame"
+                    raise ArgumentError, "#{from} is not a registered frame (#{frames.to_a.sort.join(", ")})"
                 elsif !has_frame?(to)
-                    raise ArgumentError, "#{to} is not a registered frame"
+                    raise ArgumentError, "#{to} is not a registered frame (#{frames.to_a.sort.join(", ")})"
                 else
                     raise ArgumentError, "there is no registered transformations between #{from} and #{to}"
                 end
