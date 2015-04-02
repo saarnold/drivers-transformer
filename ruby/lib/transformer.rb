@@ -80,7 +80,7 @@ module Transformer
 
         def pretty_print(pp)
             super
-            pp.text ": static"
+            pp.text ": static (xyz=#{translation.to_a.map(&:to_s).join(", ")} rpy=#{rotation.to_euler.to_a.map(&:to_s).join(", ")})"
         end
     end
 
