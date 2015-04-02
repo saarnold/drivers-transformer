@@ -574,7 +574,9 @@ module Transformer
             end
 
             translation, rotation = transformation
-            if translation.kind_of?(Eigen::Quaternion)
+            if translation.kind_of?(Eigen::Isometry3)
+                translation, rotation = translation.translation, translation.rotation
+            elsif translation.kind_of?(Eigen::Quaternion)
                 translation, rotation = rotation, translation
             end
             translation ||= Eigen::Vector3.new(0, 0, 0)
