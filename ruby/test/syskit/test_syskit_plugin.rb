@@ -1,8 +1,6 @@
 require 'transformer/syskit/test'
 
 describe Transformer::SyskitPlugin do
-    include Transformer::SyskitPlugin::SelfTest
-
     before do
         Syskit::RobyApp::Plugin.start_local_process_server
         Syskit::RobyApp::Plugin.connect_to_local_process_server

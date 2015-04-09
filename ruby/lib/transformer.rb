@@ -80,7 +80,7 @@ module Transformer
 
         def pretty_print(pp)
             super
-            pp.text ": static"
+            pp.text ": static (xyz=#{translation.to_a.map(&:to_s).join(", ")} rpy=#{rotation.to_euler.to_a.map(&:to_s).join(", ")})"
         end
     end
 
@@ -385,10 +385,6 @@ module Transformer
 
         def check_frame(frame, frames = nil)
             frame = frame.to_s
-            if frame !~ /^\w+$/
-                raise InvalidConfiguration, "frame names can only contain alphanumeric characters and _, got #{frame}"
-            end
-
             if(frames && !frames.include?(frame))
                 raise InvalidConfiguration, "unknown frame #{frame}, known frames: #{frames.to_a.sort.join(", ")}"
             end
@@ -401,20 +397,34 @@ module Transformer
 
     # Class that represents the transformer configuration
     class Configuration
+        # The set of known transformations
+        #
+        # @return [Hash<(String,String),StaticTransform|DynamicTransform>]
         attr_accessor :transforms
+
+        # The set of registered example transformations
+        #
+        # @return [Hash<(String,String),StaticTransform>]
+        attr_accessor :example_transforms
+
+        # The set of known frame names
+        #
+        # @return [Set<String>]
         attr_accessor :frames
         attr_accessor :checker
 
         def initialize(checker = ConfigurationChecker.new)
             @transforms = Hash.new
             @frames = Set.new
+            @example_transforms = Hash.new
             @checker = checker
         end
 
         def initialize_copy(old)
-            @checker = old.checker
             @transforms = Hash.new
             @frames = Set.new
+            @example_transforms = Hash.new
+            @checker = old.checker
             merge(old)
         end
 
@@ -473,16 +483,15 @@ module Transformer
         # @param [Configuration] conf
         # @return self
         def merge(conf)
-            new_transforms = conf.transforms.map_value do |_, v|
-                v.dup
-            end
-            transforms.merge!(new_transforms)
+            transforms.merge!(conf.transforms.map_value { |_, v| v.dup })
+            example_transforms.merge!(conf.example_transforms.map_value { |_, v| v.dup })
             @frames |= conf.frames
             self
         end
 
         def clear
             transforms.clear
+            example_transforms.clear
             frames.clear
         end
 
@@ -515,6 +524,9 @@ module Transformer
 	    add_transform(tr)
         end
     
+        # Declare a transformation
+        #
+        # @see static_transform dynamic_transform
 	def add_transform(tr)
             checker.check_transformation(frames, tr)
 	    if tr.from == tr.to
@@ -523,38 +535,103 @@ module Transformer
             transforms[[tr.from, tr.to]] = tr
 	end
 
-        # call-seq:
-        #   static_transform translation, "from_frame" => "to_frame"
-        #   static_transform rotation, "from_frame" => "to_frame"
-        #   static_transform translation, rotation, "from_frame" => "to_frame"
+        # Registers a transformation object as begin an example transformation
+        # for a given frame change
         #
-        # Declares a new static transformation
-        def static_transform(*transformation)
+        # @see example_transform
+        def add_example_transform(tr)
+            checker.check_transformation(frames, tr)
+	    if tr.from == tr.to
+		raise ArgumentError, "trying to register a transformation from #{tr.from} onto itself"
+	    end
+            example_transforms[[tr.from, tr.to]] = tr
+        end
+
+        # @api private
+        #
+        # Validates that the arguments passed to {static_transform} and
+        # {example_transform} match the required format, and normalizes them
+        #
+        # @overload validate_static_transform_arguments(position, rotation, from => to)
+        # @overload validate_static_transform_arguments(rotation, from => to)
+        # @overload validate_static_transform_arguments(position, from => to)
+        #
+        # @return [Eigen::Vector3,Eigen::Quaternion]
+        def validate_static_transform_arguments(*transformation)
             from, to = parse_single_transform(transformation.pop)
+            if !from || from.empty?
+                raise ArgumentError, "nil or empty frame given for 'from'"
+            end
+            if !to || to.empty?
+                raise ArgumentError, "nil or empty frame given for 'from'"
+            end
             frames(from, to)
 
             if transformation.empty?
                 raise ArgumentError, "no transformation given"
-            elsif transformation.size <= 2
-                translation, rotation = transformation
-                if translation.kind_of?(Eigen::Quaternion)
-                    translation, rotation = rotation, translation
-                end
-                translation ||= Eigen::Vector3.new(0, 0, 0)
-                rotation    ||= Eigen::Quaternion.Identity
-
-                if !translation.kind_of?(Eigen::Vector3)
-                    raise ArgumentError, "the provided translation is not an Eigen::Vector3"
-                end
-                if !rotation.kind_of?(Eigen::Quaternion)
-                    raise ArgumentError, "the provided rotation is not an Eigen::Quaternion"
-                end
-            else
-                raise ArgumentError, "#static_transform was expecting either a translation, rotation or both but got #{transformation}"
+            elsif transformation.size > 2
+                raise ArgumentError, "was expecting either a translation, rotation or both but got #{transformation}"
             end
 
+            translation, rotation = transformation
+            if translation.kind_of?(Eigen::Isometry3)
+                translation, rotation = translation.translation, translation.rotation
+            elsif translation.kind_of?(Eigen::Quaternion)
+                translation, rotation = rotation, translation
+            end
+            translation ||= Eigen::Vector3.new(0, 0, 0)
+            rotation    ||= Eigen::Quaternion.Identity
+
+            if !translation.kind_of?(Eigen::Vector3)
+                raise ArgumentError, "the provided translation is not an Eigen::Vector3"
+            end
+            if !rotation.kind_of?(Eigen::Quaternion)
+                raise ArgumentError, "the provided rotation is not an Eigen::Quaternion"
+            end
+            return from, to, translation, rotation
+        end
+
+        # Declares a new static transformation
+        #
+        # @overload static_transform translation, 'from_frame' => 'to_frame'
+        #   Adds a transformation with the specified translation and an identity
+        #   rotation
+        #   @param [Eigen::Vector3] translation the translation
+        #   @return [StaticTransform]
+        #
+        # @overload static_transform rotation, 'from_frame' => 'to_frame'
+        #   Adds a transformation with the specified rotation and a zero
+        #   translation
+        #   @param [Eigen::Quaternion] rotation the rotation
+        #   @return [StaticTransform]
+        #
+        # @overload static_transform translation, rotation, 'from_frame' => 'to_frame'
+        #   Adds a transformation with the specified translation and rotation
+        #
+        #   @param [Eigen::Quaternion] rotation the rotation
+        #   @return [StaticTransform]
+        #
+        def static_transform(*transformation)
+            from, to, translation, rotation = validate_static_transform_arguments(*transformation)
             tr = StaticTransform.new(from, to, translation, rotation)
 	    add_transform(tr)
+            tr
+        end
+
+        # Declares an example transformation between two frames
+        #
+        # This is mostly useful for visualization and design tools which can't
+        # know what values a dynamic transformation would take. The example
+        # transformation can then be used to show a meaningful transform state
+        # instead of taking identity each time
+        #
+        # @see find_example_transform
+        # @return [StaticTransform]
+        def example_transform(*transformation)
+            from, to, translation, rotation = validate_static_transform_arguments(*transformation)
+            tr = StaticTransform.new(from, to, translation, rotation)
+	    add_example_transform(tr)
+            tr
         end
 
         # Checks if a transformation between the provided frames exist.
@@ -582,14 +659,32 @@ module Transformer
             result = transforms[[from, to]]
             if !result
                 if !has_frame?(from)
-                    raise ArgumentError, "#{from} is not a registered frame"
+                    raise ArgumentError, "#{from} is not a registered frame (#{frames.to_a.sort.join(", ")})"
                 elsif !has_frame?(to)
-                    raise ArgumentError, "#{to} is not a registered frame"
+                    raise ArgumentError, "#{to} is not a registered frame (#{frames.to_a.sort.join(", ")})"
                 else
                     raise ArgumentError, "there is no registered transformations between #{from} and #{to}"
                 end
             end
             result
+        end
+
+        # Returns an example transformation for the given set of frames
+        #
+        # @raise ArgumentError if one of the two frames are not declared
+        # @return [StaticTransform] either an example explicitely declared with
+        #   {example_transform}, or a StaticTransform object that represents
+        #   identity
+        def example_transformation_for(from, to)
+            if result = example_transforms[[from, to]]
+                result
+            elsif !has_frame?(from)
+                raise ArgumentError, "#{from} is not a registered frame"
+            elsif !has_frame?(to)
+                raise ArgumentError, "#{to} is not a registered frame"
+            else
+                StaticTransform.new(from, to, Eigen::Vector3.Zero, Eigen::Quaternion.Identity)
+            end
         end
 
         # Enumerates the static transformations
@@ -610,6 +705,12 @@ module Transformer
             end
         end
 
+        # Enumerates the example transformations
+        #
+        # @yieldparam [StaticTransform] trsf
+        def each_example_transform(&block)
+            example_transforms.each_value(&block)
+        end
 
         def pretty_print(pp)
             pp.text "Transformer configuration"
@@ -636,6 +737,15 @@ module Transformer
                 pp.text "Dynamic Transforms:"
                 pp.nest(2) do
                     each_dynamic_transform do |i|
+                        pp.breakable
+                        i.pretty_print(pp)
+                    end
+                end
+
+                pp.breakable
+                pp.text "Example Transforms:"
+                pp.nest(2) do
+                    each_example_transform do |i|
                         pp.breakable
                         i.pretty_print(pp)
                     end

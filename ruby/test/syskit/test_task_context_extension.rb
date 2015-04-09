@@ -1,9 +1,6 @@
-require 'syskit/test'
 require 'transformer/syskit/test'
 
 describe Transformer::TaskContextExtension do
-    include Transformer::SyskitPlugin::SelfTest
-
     before do
         Roby.app.using_task_library 'test_transformer'
         ::Robot.logger.level = Logger::WARN

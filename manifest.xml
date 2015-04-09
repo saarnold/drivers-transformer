@@ -1,12 +1,13 @@
 <package>
-    <description brief="transformation stack">
+    <description brief="Automated computation of geometric transformations">
         This library offers a transformation stack. One may register data streams
 	together with a source and a target frame. As soon as a transformation from
 	source to target and a data sample is availabe, one get's called back with
 	the transformation and the data sample. Through this mechanism is is possible,
 	the receive any data sample in any frame wanted.
-    </description>                                                                                                                             
+    </description>
     <author>Janosch Machowinski/janosch.machowinski@dfki.de</author>
+    <author>Sylvain Joyeux/sylvain.joyeux@m4x.org</author>
     <copyright>
         DFKI/robotik@dfki.de
     </copyright>
