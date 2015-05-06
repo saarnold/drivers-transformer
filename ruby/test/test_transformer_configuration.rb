@@ -132,7 +132,7 @@ module Transformer
             it "allows to access the example transformation" do
                 trans, from, to = Eigen::Vector3.new(1, 0, 0), 'from', 'to'
                 conf.example_transform(trans, from => to)
-                tr = conf.example_transformation_for(from, to)
+                tr = conf.example_transform_for(from, to)
                 assert trans.approx?(tr.translation)
                 assert Eigen::Quaternion.Identity.approx?(tr.rotation)
                 assert_equal 'from', tr.from
@@ -140,15 +140,15 @@ module Transformer
             end
             it "raises if trying to access an example transformation for an unknown frame" do
 
-                assert_raises(ArgumentError) { conf.example_transformation_for('from', 'to') }
+                assert_raises(ArgumentError) { conf.example_transform_for('from', 'to') }
                 conf.frames 'from1'
-                assert_raises(ArgumentError) { conf.example_transformation_for('from1', 'to1') }
+                assert_raises(ArgumentError) { conf.example_transform_for('from1', 'to1') }
                 conf.frames 'to2'
-                assert_raises(ArgumentError) { conf.example_transformation_for('from2', 'to2') }
+                assert_raises(ArgumentError) { conf.example_transform_for('from2', 'to2') }
             end
             it "returns identity as example between two known frames" do
                 conf.frames 'from', 'to'
-                tr = conf.example_transformation_for('from', 'to')
+                tr = conf.example_transform_for('from', 'to')
                 assert_equal 'from', tr.from
                 assert_equal 'to', tr.to
                 assert_equal Eigen::Vector3.Zero, tr.translation

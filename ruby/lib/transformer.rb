@@ -675,7 +675,7 @@ module Transformer
         # @return [StaticTransform] either an example explicitely declared with
         #   {example_transform}, or a StaticTransform object that represents
         #   identity
-        def example_transformation_for(from, to)
+        def example_transform_for(from, to)
             if result = example_transforms[[from, to]]
                 result
             elsif !has_frame?(from)
