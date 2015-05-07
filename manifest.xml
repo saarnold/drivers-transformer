@@ -7,7 +7,7 @@
 	the receive any data sample in any frame wanted.
     </description>
     <author>Janosch Machowinski/janosch.machowinski@dfki.de</author>
-    <author>Sylvain Joyeux/sylvain.joyeux@m4x.org</author>
+    <maintainer>Sylvain Joyeux/sylvain.joyeux@m4x.org</maintainer>
     <maintainer>Janosch Machowinski/Janosch.Machowinski@dfki.de</maintainer>
     <copyright>
         DFKI/robotik@dfki.de
