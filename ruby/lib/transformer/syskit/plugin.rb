@@ -35,10 +35,12 @@ module Transformer
                     end
                 end
                 # Special case: dynamic_transformations
-                task.dynamic_transformations_port.each_concrete_connection do |out_port, _|
-                    transform = out_port.produced_transformation
-                    if transform && transform.from && transform.to
-                        self_producers[[transform.from, transform.to]] = out_port.model.orogen_model
+                if dyn_port = task.find_port('dynamic_transformations')
+                    dyn_port.each_concrete_connection do |out_port, _|
+                        transform = out_port.produced_transformation
+                        if transform && transform.from && transform.to
+                            self_producers[[transform.from, transform.to]] = out_port.model.orogen_model
+                        end
                     end
                 end
 
@@ -111,8 +113,21 @@ module Transformer
                         raise TransformationPortNotFound.new(producer_task, dyn.from, dyn.to)
                     end
                 end
-                producer.select_port_for_transform(out_port, dyn.from, dyn.to)
-                out_port.connect_to task.dynamic_transformations_port
+
+                in_ports = task.find_all_input_ports_for_transform(dyn.from, dyn.to)
+                begin
+                    producer.select_port_for_transform(out_port, dyn.from, dyn.to)
+                rescue InvalidFrameSelection => e
+                    e.producer_for << task
+                    raise
+                end
+
+                if dyn_in_port = task.find_port('dynamic_transformations')
+                    in_ports << dyn_in_port
+                end
+                in_ports.each do |p|
+                    out_port.connect_to p
+                end
             end
 
             # Manually propagate device information on the new task
@@ -224,10 +239,12 @@ module Transformer
         end
 
         def self.propagate_local_transformer_configuration(root_task)
-            FramePropagation.initialize_selected_frames(root_task, Hash.new)
+            selected_frames = Hash.new
+            selected_frames[root_task] = FramePropagation.initialize_selected_frames(root_task, Hash.new)
             FramePropagation.initialize_transform_producers(root_task, Transformer::Configuration.new)
             Roby::TaskStructure::Hierarchy.each_bfs(root_task, BGL::Graph::ALL) do |from, to, info|
-                FramePropagation.initialize_selected_frames(to, from.selected_frames)
+                selected_frames[to] = FramePropagation.initialize_selected_frames(
+                    to, selected_frames[from])
                 FramePropagation.initialize_transform_producers(to, from.transformer)
             end
         end
