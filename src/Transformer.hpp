@@ -528,7 +528,7 @@ class Transformer
 	/**
 	 * Destructor, deletes the TransformationMakers
 	 * */
-	~Transformer();
+	virtual ~Transformer();
 };
 
 template<class T>
