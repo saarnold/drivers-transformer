@@ -541,12 +541,6 @@ bool Transformation::get(const base::Time& atTime, T& result, bool interpolate) 
         return false;
     }
 
-    if(transformationChain.empty()) 
-    {
-        failedNoChain++;
-        return false;
-    }
-    
     for(std::vector<TransformationElement *>::const_iterator it = transformationChain.begin(); it != transformationChain.end(); it++)
     {
 	TransformationType tr;
