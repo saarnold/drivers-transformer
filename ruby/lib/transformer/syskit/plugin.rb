@@ -229,7 +229,7 @@ module Transformer
         def self.instanciation_postprocessing_hook(engine, plan)
             # Transfer the frame mapping information from the instance specification
             # objects to the selected_frames hashes on the tasks
-            tasks = plan.find_local_tasks(Syskit::Component).roots(Roby::TaskStructure::Hierarchy)
+            tasks = plan.find_local_tasks(Syskit::Component).roots(Roby::TaskStructure::Dependency)
             tasks.each do |root_task|
                 propagate_local_transformer_configuration(root_task)
             end
@@ -239,7 +239,7 @@ module Transformer
             selected_frames = Hash.new
             selected_frames[root_task] = FramePropagation.initialize_selected_frames(root_task, Hash.new)
             FramePropagation.initialize_transform_producers(root_task, Transformer::Configuration.new)
-            Roby::TaskStructure::Hierarchy.each_bfs(root_task, BGL::Graph::ALL) do |from, to, info|
+            Roby::TaskStructure::Dependency.each_bfs(root_task, BGL::Graph::ALL) do |from, to, info|
                 selected_frames[to] = FramePropagation.initialize_selected_frames(
                     to, selected_frames[from])
                 FramePropagation.initialize_transform_producers(to, from.transformer)

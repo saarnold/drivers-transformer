@@ -86,7 +86,7 @@ module Transformer
 
         def self.compute_frames(plan)
             algorithm = FramePropagation.new
-            tasks = plan.find_local_tasks(Syskit::TaskContext).to_value_set
+            tasks = plan.find_local_tasks(Syskit::TaskContext).to_set
             algorithm.propagate(tasks)
         end
 
