@@ -161,7 +161,7 @@ module Transformer
                     producer_tasks = instanciated_producers[producer_model]
                     if !producer_tasks.empty?
                         is_recursive = producer_tasks.any? do |prod_task|
-                            prod_task == task || Roby::TaskStructure::Dependency.reachable?(prod_task, task)
+                            prod_task == task || prod_task.reachable?(task, Roby::TaskStructure::Dependency)
                         end
                         if is_recursive
                             raise RecursiveProducer, "#{producer_model} requires some transformations (#{transformations.map { |tr| "#{tr.from}=>#{tr.to}" }}) that are produced by itself"
@@ -235,15 +235,27 @@ module Transformer
             end
         end
 
-        def self.propagate_local_transformer_configuration(root_task)
-            selected_frames = Hash.new
-            selected_frames[root_task] = FramePropagation.initialize_selected_frames(root_task, Hash.new)
-            FramePropagation.initialize_transform_producers(root_task, Transformer::Configuration.new)
-            Roby::TaskStructure::Dependency.each_bfs(root_task, BGL::Graph::ALL) do |from, to, info|
+        class TransformerConfigurationVisitor < RGL::DFSVisitor
+            attr_reader :selected_frames
+
+            def handle_start_vertex(root_task)
+                @selected_frames = Hash.new
+                selected_frames[root_task] = FramePropagation.initialize_selected_frames(root_task, Hash.new)
+                FramePropagation.initialize_transform_producers(root_task, Transformer::Configuration.new)
+            end
+
+            def handle_examine_edge(from, to)
                 selected_frames[to] = FramePropagation.initialize_selected_frames(
                     to, selected_frames[from])
                 FramePropagation.initialize_transform_producers(to, from.transformer)
             end
+        end
+
+        def self.propagate_local_transformer_configuration(root_task)
+            dependency_graph = root_task.relation_graph_for(Roby::TaskStructure::Dependency)
+            visitor = TransformerConfigurationVisitor.new(dependency_graph)
+            visitor.handle_start_vertex(root_task)
+            dependency_graph.depth_first_visit(root_task, visitor) {}
         end
 
         # Validate that the frame selected for the given task are consistent
