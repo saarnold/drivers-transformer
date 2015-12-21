@@ -44,7 +44,7 @@ module Transformer
 
         # Updates the frame mappings when merging two instance requirements
         def merge(other_spec, **options)
-            super if defined? super
+            super
 
             frame_mappings.merge!(other_spec.frame_mappings) do |frame_name, sel0, sel1|
                 if !sel0 then sel1

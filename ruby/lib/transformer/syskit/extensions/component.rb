@@ -14,8 +14,8 @@ module Transformer
         end
 
         def can_merge?(other)
-            if !(result = super)
-                return result
+            if !super
+                return false
             end
 
             selected_frames.each do |task_frame, selected_frame|

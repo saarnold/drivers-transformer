@@ -4,7 +4,7 @@ module Transformer
         # During network validation, checks that all required frames have been
         # configured
         def validate_generated_network(plan, options)
-            super if defined? super
+            super
 
             if Syskit.conf.transformer_enabled?
                 plan.find_local_tasks(Syskit::TaskContext).each do |task|

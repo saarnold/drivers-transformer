@@ -301,7 +301,7 @@ module Transformer
 
                 # Now find out the frame producers that each task needs, and add them to
                 # the graph
-                needed = add_needed_producers(transformer_tasks, all_producers, :validate_network => engine.options[:validate_abstract_network])
+                needed = add_needed_producers(transformer_tasks, all_producers, validate_network: engine.options[:validate_abstract_network])
             end
 
             # We must now validate. The frame propagation algorithm does
@@ -341,7 +341,7 @@ module Transformer
             # Maintain a transformer broadcaster on the main engine
             Roby::ExecutionEngine.add_propagation_handler(lambda do |plan|
 		if Syskit.conf.transformer_broadcaster_enabled?
-		    if !plan.engine.quitting? && plan.find_tasks(OroGen::Transformer::Task).not_finished.empty?
+		    if !plan.execution_engine.quitting? && plan.find_tasks(OroGen::Transformer::Task).not_finished.empty?
 			plan.add_mission(OroGen::Transformer::Task)
 		    end
 		end
@@ -365,25 +365,49 @@ module Transformer
                 end
             end
 
-            Syskit::Component.include Transformer::ComponentExtension
-            Syskit::Component.extend Transformer::ComponentModelExtension
-            Syskit::TaskContext.include Transformer::TaskContextExtension
-            Syskit::TaskContext.extend Transformer::TaskContextModelExtension
-            Syskit::Port.include Transformer::PortExtension
-            Syskit::Composition.include Transformer::CompositionExtension
-            Syskit::BoundDataService.include Transformer::BoundDataServiceExtension
-            Roby::Plan.include Transformer::PlanExtension
+            Syskit::Component.class_eval do
+                prepend Transformer::ComponentExtension
+                extend Transformer::ComponentModelExtension
+            end
+            Syskit::TaskContext.class_eval do
+                prepend Transformer::TaskContextExtension
+                extend Transformer::TaskContextModelExtension
+            end
+            Syskit::Port.class_eval do
+                prepend Transformer::PortExtension
+            end
+            Syskit::Composition.class_eval do
+                prepend Transformer::CompositionExtension
+            end
+            Syskit::BoundDataService.class_eval do
+                prepend Transformer::BoundDataServiceExtension
+            end
+            Roby::Plan.class_eval do
+                prepend Transformer::PlanExtension
+            end
 
-            Syskit::Robot::DeviceInstance.include Transformer::DeviceExtension
-            Syskit::Graphviz.include Transformer::GraphvizExtension
+            Syskit::Robot::DeviceInstance.class_eval do
+                prepend Transformer::DeviceExtension
+            end
+            Syskit::Graphviz.class_eval do
+                prepend Transformer::GraphvizExtension
+            end
             Syskit::Graphviz.available_task_annotations << 'transforms'
-            Syskit::InstanceRequirements.include Transformer::InstanceRequirementsExtension
-            Syskit::NetworkGeneration::Engine.include Transformer::EngineExtension
-            Syskit::Actions::Profile.include Transformer::ProfileExtension
+            Syskit::InstanceRequirements.class_eval do
+                prepend Transformer::InstanceRequirementsExtension
+            end
+            Syskit::NetworkGeneration::Engine.class_eval do
+                prepend Transformer::EngineExtension
+            end
+            Syskit::Actions::Profile.class_eval do
+                prepend Transformer::ProfileExtension
+            end
         end
 
         def self.register
-            Syskit::RobyApp::Configuration.include Transformer::ConfigurationExtension
+            Syskit::RobyApp::Configuration.class_eval do
+                prepend Transformer::ConfigurationExtension
+            end
             Syskit::TaskContext.extend Transformer::TransformerConfigurationAccess
             Roby.app.filter_out_patterns.push(/^#{Regexp.quote(__FILE__)}/)
         end
