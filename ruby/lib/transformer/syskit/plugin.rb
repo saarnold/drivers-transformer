@@ -339,13 +339,13 @@ module Transformer
             Roby.app.add_plugin 'syskit-transformer', RobyAppPlugin
 
             # Maintain a transformer broadcaster on the main engine
-            Roby::ExecutionEngine.add_propagation_handler(lambda do |plan|
+            Roby::ExecutionEngine.add_propagation_handler(description: 'syskit-transformer transformer broadcaster start') do |plan|
 		if Syskit.conf.transformer_broadcaster_enabled?
 		    if !plan.execution_engine.quitting? && plan.find_tasks(OroGen::Transformer::Task).not_finished.empty?
 			plan.add_mission(OroGen::Transformer::Task)
 		    end
 		end
-            end)
+            end
 
             Syskit::NetworkGeneration::Engine.register_instanciation_postprocessing do |engine, plan|
                 if Syskit.conf.transformer_enabled?
