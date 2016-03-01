@@ -3,5 +3,6 @@ rock_library(transformer
 	    NonAligningTransformer.cpp
     HEADERS Transformer.hpp TransformationStatus.hpp
 	    NonAligningTransformer.hpp
+	    DetermineSampleTimestamp.hpp
     DEPS_PKGCONFIG aggregator base-types)
 
