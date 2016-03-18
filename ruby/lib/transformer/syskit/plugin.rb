@@ -327,6 +327,10 @@ module Transformer
 
         module RobyAppPlugin
             def self.setup(app)
+                if app.testing?
+                    Syskit.conf.transformer_warn_about_unset_frames = false
+                end
+
                 Roby.app.using_task_library('transformer')
             end
 
