@@ -189,7 +189,8 @@ class TransformationElement {
 class StaticTransformationElement : public TransformationElement {
     public:
 	StaticTransformationElement(const std::string &sourceFrame, const std::string &targetFrame, const TransformationType &transform) : TransformationElement(sourceFrame, targetFrame), staticTransform(transform) {};
-	
+        virtual ~StaticTransformationElement() {};
+        
 	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& tr)
 	{
 	    tr = staticTransform;
@@ -234,6 +235,7 @@ class DynamicTransformationElement : public TransformationElement {
 class InverseTransformationElement : public TransformationElement {
     public:
 	InverseTransformationElement(TransformationElement *source): TransformationElement(source->getTargetFrame(), source->getSourceFrame()), nonInverseElement(source) {};
+        virtual ~InverseTransformationElement() {};
 	virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& tr);
 
 	virtual void addTransformationChangedCallback(boost::function<void (const base::Time &ts)> callback) 

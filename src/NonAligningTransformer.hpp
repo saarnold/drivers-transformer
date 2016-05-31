@@ -9,6 +9,7 @@ class NonAlignedDynamicTransformationElement : public TransformationElement
 {
 public:
     NonAlignedDynamicTransformationElement(const std::string& sourceFrame, const std::string& targetFrame);
+    virtual ~NonAlignedDynamicTransformationElement() {};
     virtual bool getTransformation(const base::Time& atTime, bool doInterpolation, TransformationType& result);
 
     void setTransformation(const base::Time& atTime, const TransformationType& tr);
@@ -30,6 +31,7 @@ class NonAligningTransformer : public transformer::Transformer
 {
 public:
     NonAligningTransformer();
+    virtual ~NonAligningTransformer() {};
     
     virtual void clear();
     
