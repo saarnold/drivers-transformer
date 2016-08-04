@@ -2,7 +2,7 @@
 #include <Eigen/LU>
 #include <Eigen/SVD>
 #include <assert.h>
-#include <base/Logging.hpp>
+#include <base-logging/Logging.hpp>
 
 namespace transformer {
     
